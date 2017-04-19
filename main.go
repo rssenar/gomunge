@@ -9,30 +9,31 @@ import (
 	"time"
 )
 
+// Customer struct defines customer header fields
 type customer struct {
-	id         int
-	firstname  string
-	mi         string
-	lastname   string
-	address1   string
-	address2   string
-	city       string
-	state      string
-	zip        string
-	zip4       string
-	hph        string
-	bph        string
-	cph        string
-	email      string
-	vin        string
-	year       string
-	make       string
-	model      string
-	deldate    time.Time
-	date       time.Time
-	dsfwalkseq string
-	crrt       string
-	kbb        string
+	ID         int       `json:"id"`
+	Firstname  string    `json:"first_name"`
+	MI         string    `json:"middle_name"`
+	Lastname   string    `json:"last_name"`
+	Address1   string    `json:"address_1"`
+	Address2   string    `json:"address_2"`
+	City       string    `json:"city"`
+	State      string    `json:"state"`
+	Zip        string    `json:"zip"`
+	Zip4       string    `json:"zip_4"`
+	HPH        string    `json:"home_phone"`
+	BPH        string    `json:"business_phone"`
+	CPH        string    `json:"mobile_phone"`
+	Email      string    `json:"email"`
+	VIN        string    `json:"VIN"`
+	Year       string    `json:"year"`
+	Make       string    `json:"make"`
+	Model      string    `json:"model"`
+	DelDate    time.Time `json:"delivery_date"`
+	Date       time.Time `json:"date"`
+	DSFwalkseq string    `json:"DSF_Walk_Sequence"`
+	CRRT       string    `json:"CRRT"`
+	KBB        string    `json:"KBB"`
 }
 
 func main() {
