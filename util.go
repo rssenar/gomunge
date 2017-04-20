@@ -210,11 +210,10 @@ func parseDate(d string) time.Time {
 }
 
 func parsePhone(p string) string {
-	sep := []string{"-", ".", "*", "(", ")"}
+	sep := []string{"-", ".", "*", "(", ")", " "}
 	for _, v := range sep {
 		p = strings.Replace(p, v, "", -1)
 	}
-	p = strings.Replace(p, " ", "", -1)
 	switch len(p) {
 	case 10:
 		return fmt.Sprintf("(%v) %v-%v", p[0:3], p[3:6], p[6:10])
@@ -223,7 +222,6 @@ func parsePhone(p string) string {
 	default:
 		return ""
 	}
-}
 
 func decodeYr(y string) string {
 	// YearDecodeDict is a map of 2-Digit abbreviated Years

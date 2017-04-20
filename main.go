@@ -50,8 +50,6 @@ func main() {
 	}
 	defer outfile.Close()
 
-	writer := csv.NewWriter(outfile)
-
 	cust := newColumnInfo()
 
 	csvReader := csv.NewReader(f)
@@ -66,6 +64,7 @@ func main() {
 			cust.setColumns(record)
 		} else {
 			customer := cust.parseColumns(record, rowCount)
+			_ = customer
 		}
 	}
 }
