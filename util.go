@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -79,91 +78,88 @@ func (c *columnInfo) setColumns(record []string) {
 }
 
 func (c *columnInfo) parseColumns(record []string, rowNum int) *customer {
-	customer := &customer{id: rowNum}
+	customer := &customer{ID: rowNum}
 	for header := range c.columns {
 		switch header {
 		case "fullname":
 			name := names.Parse(record[c.columns[header]])
 			if _, ok := c.columns["firstname"]; ok {
 				if record[c.columns["firstname"]] == "" {
-					customer.firstname = tCase(name.FirstName)
+					customer.Firstname = tCase(name.FirstName)
 				}
 			}
 			if _, ok := c.columns["mi"]; ok {
 				if record[c.columns["mi"]] == "" {
-					customer.mi = tCase(name.MiddleName)
+					customer.MI = tCase(name.MiddleName)
 				}
 			}
 			if _, ok := c.columns["lastname"]; ok {
 				if record[c.columns["lastname"]] == "" {
-					customer.lastname = tCase(name.LastName)
+					customer.Lastname = tCase(name.LastName)
 				}
 			}
 		case "firstname":
-			if customer.firstname == "" {
-				customer.firstname = tCase(record[c.columns[header]])
+			if customer.Firstname == "" {
+				customer.Firstname = tCase(record[c.columns[header]])
 			}
 		case "mi":
-			if customer.mi == "" {
-				customer.mi = tCase(record[c.columns[header]])
+			if customer.MI == "" {
+				customer.MI = tCase(record[c.columns[header]])
 			}
 		case "lastname":
-			if customer.lastname == "" {
-				customer.lastname = tCase(record[c.columns[header]])
+			if customer.Lastname == "" {
+				customer.Lastname = tCase(record[c.columns[header]])
 			}
 		case "address1":
-			customer.address1 = tCase(record[c.columns[header]])
+			customer.Address1 = tCase(record[c.columns[header]])
 		case "address2":
-			customer.address2 = tCase(record[c.columns[header]])
+			customer.Address2 = tCase(record[c.columns[header]])
 		case "city":
-			customer.city = tCase(record[c.columns[header]])
+			customer.City = tCase(record[c.columns[header]])
 		case "state":
-			customer.state = tCase(record[c.columns[header]])
+			customer.State = tCase(record[c.columns[header]])
 		case "zip":
-			customer.zip, _ = parseZip(record[c.columns[header]])
+			customer.Zip, _ = parseZip(record[c.columns[header]])
 		case "zip4":
-			_, customer.zip4 = parseZip(record[c.columns[header]])
+			_, customer.Zip4 = parseZip(record[c.columns[header]])
 		case "hph":
-			customer.hph = parsePhone(record[c.columns[header]])
+			customer.HPH = parsePhone(record[c.columns[header]])
 		case "bph":
-			customer.bph = parsePhone(record[c.columns[header]])
+			customer.BPH = parsePhone(record[c.columns[header]])
 		case "cph":
-			customer.cph = parsePhone(record[c.columns[header]])
+			customer.CPH = parsePhone(record[c.columns[header]])
 		case "email":
-			customer.email = lCase(record[c.columns[header]])
+			customer.Email = lCase(record[c.columns[header]])
 		case "vin":
-			customer.vin = uCase(record[c.columns[header]])
+			customer.VIN = uCase(record[c.columns[header]])
 		case "year":
 			if _, err := strconv.Atoi(record[c.columns[header]]); err != nil {
-				log.Printf("Invalid Year: %v %v on record (%v)", header, err, customer.id)
-				customer.year = ""
-			} else {
-				customer.year = decodeYr(record[c.columns[header]])
+				customer.Year = ""
+				continue
 			}
+			customer.Year = decodeYr(record[c.columns[header]])
 		case "make":
-			customer.make = tCase(record[c.columns[header]])
+			customer.Make = tCase(record[c.columns[header]])
 		case "model":
-			customer.model = tCase(record[c.columns[header]])
+			customer.Model = tCase(record[c.columns[header]])
 		case "deldate":
-			customer.deldate = parseDate(record[c.columns[header]])
+			customer.DelDate = parseDate(record[c.columns[header]])
 		case "date":
-			customer.date = parseDate(record[c.columns[header]])
+			customer.Date = parseDate(record[c.columns[header]])
 		case "dsfwalkseq":
 			if _, err := strconv.Atoi(record[c.columns[header]]); err != nil {
-				log.Printf("%v Invalid WalkSeq on record (%v)", err, customer.id)
-				customer.dsfwalkseq = ""
-			} else {
-				customer.dsfwalkseq = record[c.columns[header]]
+				customer.DSFwalkseq = ""
+				continue
 			}
+			customer.DSFwalkseq = record[c.columns[header]]
 		case "crrt":
-			customer.crrt = uCase(record[c.columns[header]])
+			customer.CRRT = uCase(record[c.columns[header]])
 		case "kbb":
 			if _, err := strconv.Atoi(record[c.columns[header]]); err != nil {
-				log.Printf("%v could not parse KBB on record (%v)", err, customer.id)
-				customer.kbb = ""
-			} else {
-				customer.kbb = record[c.columns[header]]
+				customer.KBB = ""
+				continue
 			}
+			customer.KBB = record[c.columns[header]]
 		}
 	}
 	return customer
