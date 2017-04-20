@@ -10,15 +10,26 @@ import (
 	"github.com/blendlabs/go-name-parser"
 )
 
-type columnInfo struct {
+type dataInfo struct {
 	columns map[string]int
+	dupes   map[string]bool
 }
 
-func newColumnInfo() *columnInfo {
-	return &columnInfo{columns: make(map[string]int)}
+func newDataInfo() *dataInfo {
+	return &dataInfo{
+		columns: make(map[string]int),
+		dupes:   make(map[string]bool),
+	}
 }
 
-func (c *columnInfo) setColumns(record []string) {
+func (c *dataInfo) deDupe(cust *customer) {
+	addr := fmt.Sprintf("%v %v", cust.Address1, cust.Address2)
+	if _, ok := c.dupes[addr]; !ok {
+		c.dupes[addr] = true
+	}
+}
+
+func (c *dataInfo) setColumns(record []string) {
 	for idx, value := range record {
 		switch {
 		case regexp.MustCompile(`(?i)ful.+me`).MatchString(value):
@@ -77,7 +88,7 @@ func (c *columnInfo) setColumns(record []string) {
 	}
 }
 
-func (c *columnInfo) parseColumns(record []string, rowNum int) *customer {
+func (c *dataInfo) parseColumns(record []string, rowNum int) *customer {
 	customer := &customer{ID: rowNum}
 	for header := range c.columns {
 		switch header {

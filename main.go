@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -35,6 +36,10 @@ type customer struct {
 	KBB        string    `json:"KBB"`
 }
 
+func (c *customer) deDupe() {
+	address := fmt.Sprintf("%v %v", c.Address1, c.Address2)
+}
+
 func main() {
 	// Open CSV file
 	f, err := os.Open("test.csv")
@@ -50,7 +55,7 @@ func main() {
 	}
 	defer outfile.Close()
 
-	cust := newColumnInfo()
+	cust := newDataInfo()
 
 	csvReader := csv.NewReader(f)
 	for rowCount := 0; ; rowCount++ {
