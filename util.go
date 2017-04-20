@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,22 +12,28 @@ import (
 )
 
 type dataInfo struct {
-	columns map[string]int
-	dupes   map[string]bool
+	columns     map[string]int
+	dupes       map[string]int
+	suppression map[string]string
 }
 
 func newDataInfo() *dataInfo {
 	return &dataInfo{
-		columns: make(map[string]int),
-		dupes:   make(map[string]bool),
+		columns:     make(map[string]int),
+		dupes:       make(map[string]int),
+		suppression: make(map[string]string),
 	}
 }
 
-func (c *dataInfo) deDupe(cust *customer) {
-	addr := fmt.Sprintf("%v %v", cust.Address1, cust.Address2)
-	if _, ok := c.dupes[addr]; !ok {
-		c.dupes[addr] = true
+func (c *dataInfo) deDupe(cust *customer) (*customer, error) {
+	addr := fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
+	if _, ok := c.dupes[addr]; ok {
+		err := fmt.Errorf("%v is a duplicate record", addr)
+		log.Printf("Duplicate Records : %v - %v, %v [%v %v %v]\n", cust.ID, cust.Firstname, cust.Lastname, cust.Address1, cust.Address2, cust.Zip)
+		return nil, err
 	}
+	c.dupes[addr]++
+	return cust, nil
 }
 
 func (c *dataInfo) setColumns(record []string) {
@@ -128,7 +135,7 @@ func (c *dataInfo) parseColumns(record []string, rowNum int) *customer {
 		case "city":
 			customer.City = tCase(record[c.columns[header]])
 		case "state":
-			customer.State = tCase(record[c.columns[header]])
+			customer.State = uCase(record[c.columns[header]])
 		case "zip":
 			customer.Zip, _ = parseZip(record[c.columns[header]])
 		case "zip4":

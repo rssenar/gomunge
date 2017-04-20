@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -36,24 +36,12 @@ type customer struct {
 	KBB        string    `json:"KBB"`
 }
 
-func (c *customer) deDupe() {
-	address := fmt.Sprintf("%v %v", c.Address1, c.Address2)
-}
-
 func main() {
-	// Open CSV file
 	f, err := os.Open("test.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer f.Close()
-
-	// Open Output json file
-	outfile, err := os.Open("/Users/richardsenar/desktop/test.csv")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer outfile.Close()
 
 	cust := newDataInfo()
 
@@ -69,7 +57,22 @@ func main() {
 			cust.setColumns(record)
 		} else {
 			customer := cust.parseColumns(record, rowCount)
-			_ = customer
+			if customer, err = cust.deDupe(customer); err != nil {
+				continue
+			}
+
+			var record []string
+			record = append(record, strconv.Itoa(customer.ID))
+			record = append(record, customer.Firstname)
+			record = append(record, customer.Lastname)
+			record = append(record, customer.Address1)
+			record = append(record, customer.Address2)
+			record = append(record, customer.City)
+			record = append(record, customer.State)
+			record = append(record, customer.Zip)
+			writer := csv.NewWriter(os.Stdout)
+			writer.Write(record)
+			writer.Flush()
 		}
 	}
 }
