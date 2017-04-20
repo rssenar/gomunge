@@ -2,11 +2,9 @@ package main
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -37,50 +35,31 @@ type customer struct {
 	KBB        string    `json:"KBB"`
 }
 
+var param *dataInfo
+
 func main() {
-	cust := newDataInfo()
-	csvReader := csv.NewReader(os.Stdin)
-	for rowCount := 0; ; rowCount++ {
-		record, err := csvReader.Read()
+	param = newDataInfo()
+	//tasks := newTasks()
+}
+
+func newTasks() <-chan []string {
+	t := make(chan []string)
+	reader := csv.NewReader(os.Stdin)
+	var ctr int
+	for ctr = 0; ; ctr++ {
+		rec, err := reader.Read()
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("Error parsing CSV file: %v \n", err)
 		}
-		if rowCount == 0 {
-			cust.setColumns(record)
+		if ctr == 0 {
+			param.setColumns(rec)
 		} else {
-			customer := cust.parseColumns(record, rowCount)
-			if customer, err = cust.deDupe(customer); err != nil {
-				continue
-			}
-			var record []string
-			record = append(record, strconv.Itoa(customer.ID))
-			record = append(record, customer.Firstname)
-			record = append(record, customer.MI)
-			record = append(record, customer.Lastname)
-			record = append(record, fmt.Sprintf("%v %v", customer.Address1, customer.Address2))
-			record = append(record, customer.City)
-			record = append(record, customer.State)
-			record = append(record, customer.Zip)
-			record = append(record, customer.Zip4)
-			record = append(record, customer.HPH)
-			record = append(record, customer.BPH)
-			record = append(record, customer.CPH)
-			record = append(record, customer.Email)
-			record = append(record, customer.VIN)
-			record = append(record, customer.Year)
-			record = append(record, customer.Make)
-			record = append(record, customer.Model)
-			record = append(record, customer.DelDate.String())
-			record = append(record, customer.Date.String())
-			record = append(record, customer.DSFwalkseq)
-			record = append(record, customer.CRRT)
-			record = append(record, customer.KBB)
-
-			writer := csv.NewWriter(os.Stdout)
-			writer.Write(record)
-			writer.Flush()
+			t <- rec
 		}
 	}
+	close(t)
+	log.Printf("Import complete, %v records")
+	return t
 }

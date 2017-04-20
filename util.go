@@ -95,8 +95,8 @@ func (c *dataInfo) setColumns(record []string) {
 	}
 }
 
-func (c *dataInfo) parseColumns(record []string, rowNum int) *customer {
-	customer := &customer{ID: rowNum}
+func (c *dataInfo) parseColumns(record []string) *customer {
+	customer := &customer{}
 	for header := range c.columns {
 		switch header {
 		case "fullname":
