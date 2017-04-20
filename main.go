@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -37,15 +38,8 @@ type customer struct {
 }
 
 func main() {
-	f, err := os.Open("test.csv")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer f.Close()
-
 	cust := newDataInfo()
-
-	csvReader := csv.NewReader(f)
+	csvReader := csv.NewReader(os.Stdin)
 	for rowCount := 0; ; rowCount++ {
 		record, err := csvReader.Read()
 		if err == io.EOF {
@@ -60,16 +54,30 @@ func main() {
 			if customer, err = cust.deDupe(customer); err != nil {
 				continue
 			}
-
 			var record []string
 			record = append(record, strconv.Itoa(customer.ID))
 			record = append(record, customer.Firstname)
+			record = append(record, customer.MI)
 			record = append(record, customer.Lastname)
-			record = append(record, customer.Address1)
-			record = append(record, customer.Address2)
+			record = append(record, fmt.Sprintf("%v %v", customer.Address1, customer.Address2))
 			record = append(record, customer.City)
 			record = append(record, customer.State)
 			record = append(record, customer.Zip)
+			record = append(record, customer.Zip4)
+			record = append(record, customer.HPH)
+			record = append(record, customer.BPH)
+			record = append(record, customer.CPH)
+			record = append(record, customer.Email)
+			record = append(record, customer.VIN)
+			record = append(record, customer.Year)
+			record = append(record, customer.Make)
+			record = append(record, customer.Model)
+			record = append(record, customer.DelDate.String())
+			record = append(record, customer.Date.String())
+			record = append(record, customer.DSFwalkseq)
+			record = append(record, customer.CRRT)
+			record = append(record, customer.KBB)
+
 			writer := csv.NewWriter(os.Stdout)
 			writer.Write(record)
 			writer.Flush()
