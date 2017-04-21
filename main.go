@@ -1,14 +1,15 @@
 package main
 
 import (
-	"encoding/csv"
-	"io"
-	"log"
-	"os"
+	"sync"
 	"time"
 )
 
-// Customer struct defines customer header fields
+var (
+	param = newDataInfo()
+	wg    sync.WaitGroup
+)
+
 type customer struct {
 	ID         int       `json:"id"`
 	Firstname  string    `json:"first_name"`
@@ -35,31 +36,15 @@ type customer struct {
 	KBB        string    `json:"KBB"`
 }
 
-var param *dataInfo
-
 func main() {
-	param = newDataInfo()
-	//tasks := newTasks()
-}
-
-func newTasks() <-chan []string {
-	t := make(chan []string)
-	reader := csv.NewReader(os.Stdin)
-	var ctr int
-	for ctr = 0; ; ctr++ {
-		rec, err := reader.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatalf("Error parsing CSV file: %v \n", err)
-		}
-		if ctr == 0 {
-			param.setColumns(rec)
-		} else {
-			t <- rec
-		}
+	wg.Add(1000)
+	go tasksFactory()
+	go func() {
+		wg.Wait()
+		close(param.results)
+	}()
+	for i := 0; i < 1000; i++ {
+		go processTasks()
 	}
-	close(t)
-	log.Printf("Import complete, %v records")
-	return t
+	outputCSV()
 }

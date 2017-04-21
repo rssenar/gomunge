@@ -15,6 +15,8 @@ type dataInfo struct {
 	columns     map[string]int
 	dupes       map[string]int
 	suppression map[string]string
+	tasks       chan []string
+	results     chan *customer
 }
 
 func newDataInfo() *dataInfo {
@@ -22,6 +24,8 @@ func newDataInfo() *dataInfo {
 		columns:     make(map[string]int),
 		dupes:       make(map[string]int),
 		suppression: make(map[string]string),
+		tasks:       make(chan []string),
+		results:     make(chan *customer),
 	}
 }
 
