@@ -1,8 +1,9 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
-	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ type dataInfo struct {
 	suppression map[string]string
 	tasks       chan []string
 	results     chan *customer
+	duplicates  chan *customer
 }
 
 func newDataInfo() *dataInfo {
@@ -26,6 +28,7 @@ func newDataInfo() *dataInfo {
 		suppression: make(map[string]string),
 		tasks:       make(chan []string),
 		results:     make(chan *customer),
+		duplicates:  make(chan *customer),
 	}
 }
 
@@ -33,7 +36,6 @@ func (c *dataInfo) deDupe(cust *customer) (*customer, error) {
 	addr := fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
 	if _, ok := c.dupes[addr]; ok {
 		err := fmt.Errorf("%v is a duplicate record", addr)
-		log.Printf("Duplicate Records : %v - %v, %v [%v %v %v]\n", cust.ID, cust.Firstname, cust.Lastname, cust.Address1, cust.Address2, cust.Zip)
 		return nil, err
 	}
 	c.dupes[addr]++
@@ -104,21 +106,11 @@ func (c *dataInfo) parseColumns(record []string) *customer {
 	for header := range c.columns {
 		switch header {
 		case "fullname":
-			name := names.Parse(record[c.columns[header]])
-			if _, ok := c.columns["firstname"]; ok {
-				if record[c.columns["firstname"]] == "" {
-					customer.Firstname = tCase(name.FirstName)
-				}
-			}
-			if _, ok := c.columns["mi"]; ok {
-				if record[c.columns["mi"]] == "" {
-					customer.MI = tCase(name.MiddleName)
-				}
-			}
-			if _, ok := c.columns["lastname"]; ok {
-				if record[c.columns["lastname"]] == "" {
-					customer.Lastname = tCase(name.LastName)
-				}
+			if customer.Firstname == "" || customer.Lastname == "" {
+				name := names.Parse(record[c.columns[header]])
+				customer.Firstname = tCase(name.FirstName)
+				customer.MI = tCase(name.MiddleName)
+				customer.Lastname = tCase(name.LastName)
 			}
 		case "firstname":
 			if customer.Firstname == "" {
@@ -155,11 +147,9 @@ func (c *dataInfo) parseColumns(record []string) *customer {
 		case "vin":
 			customer.VIN = uCase(record[c.columns[header]])
 		case "year":
-			if _, err := strconv.Atoi(record[c.columns[header]]); err != nil {
-				customer.Year = ""
-				continue
+			if _, err := strconv.Atoi(record[c.columns[header]]); err == nil {
+				customer.Year = decodeYr(record[c.columns[header]])
 			}
-			customer.Year = decodeYr(record[c.columns[header]])
 		case "make":
 			customer.Make = tCase(record[c.columns[header]])
 		case "model":
@@ -169,19 +159,15 @@ func (c *dataInfo) parseColumns(record []string) *customer {
 		case "date":
 			customer.Date = parseDate(record[c.columns[header]])
 		case "dsfwalkseq":
-			if _, err := strconv.Atoi(record[c.columns[header]]); err != nil {
-				customer.DSFwalkseq = ""
-				continue
+			if _, err := strconv.Atoi(record[c.columns[header]]); err == nil {
+				customer.DSFwalkseq = record[c.columns[header]]
 			}
-			customer.DSFwalkseq = record[c.columns[header]]
 		case "crrt":
 			customer.CRRT = uCase(record[c.columns[header]])
 		case "kbb":
-			if _, err := strconv.Atoi(record[c.columns[header]]); err != nil {
-				customer.KBB = ""
-				continue
+			if _, err := strconv.Atoi(record[c.columns[header]]); err == nil {
+				customer.KBB = record[c.columns[header]]
 			}
-			customer.KBB = record[c.columns[header]]
 		}
 	}
 	return customer
@@ -246,8 +232,89 @@ func parsePhone(p string) string {
 	}
 }
 
+func outputCSV() {
+	writer := csv.NewWriter(os.Stdout)
+	header := []string{
+		"First Name",
+		"MI",
+		"Last Name",
+		"Address",
+		"City",
+		"State",
+		"Zip",
+		"Home Phone",
+		"Business Phone",
+		"Mobile Phone",
+		"VIN #",
+		"Year",
+		"Make",
+		"Model",
+		"Delivery Date",
+		"Last Serv Date",
+		"Walk Seq",
+		"CRRT",
+		"KBB",
+		"DelDate_Year",
+		"DelDate_Month",
+		"Date_Year",
+		"Date_Month",
+	}
+	writer.Write(header)
+	for x := range param.results {
+		var r []string
+		r = append(r, x.Firstname)
+		r = append(r, x.MI)
+		r = append(r, x.Lastname)
+		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+		r = append(r, x.City)
+		r = append(r, x.State)
+		r = append(r, x.Zip)
+		r = append(r, x.HPH)
+		r = append(r, x.BPH)
+		r = append(r, x.CPH)
+		r = append(r, x.VIN)
+		r = append(r, x.Year)
+		r = append(r, x.Make)
+		r = append(r, x.Model)
+		if !x.DelDate.IsZero() {
+			r = append(r, x.DelDate.Format(time.RFC3339))
+		} else {
+			r = append(r, "")
+		}
+		if !x.Date.IsZero() {
+			r = append(r, x.Date.Format(time.RFC3339))
+		} else {
+			r = append(r, "")
+		}
+		r = append(r, x.DSFwalkseq)
+		r = append(r, x.CRRT)
+		r = append(r, x.KBB)
+		if !x.DelDate.IsZero() {
+			r = append(r, strconv.Itoa(x.DelDate.Year()))
+		} else {
+			r = append(r, "")
+		}
+		if !x.DelDate.IsZero() {
+			r = append(r, strconv.Itoa(int(x.DelDate.Month())))
+		} else {
+			r = append(r, "")
+		}
+		if !x.Date.IsZero() {
+			r = append(r, strconv.Itoa(x.Date.Year()))
+		} else {
+			r = append(r, "")
+		}
+		if !x.Date.IsZero() {
+			r = append(r, strconv.Itoa(int(x.Date.Month())))
+		} else {
+			r = append(r, "")
+		}
+		writer.Write(r)
+	}
+	writer.Flush()
+}
+
 func decodeYr(y string) string {
-	// YearDecodeDict is a map of 2-Digit abbreviated Years
 	yrDecDict := map[string]string{
 		"0":  "2000",
 		"1":  "2001",
@@ -335,4 +402,69 @@ func decodeYr(y string) string {
 		return dy
 	}
 	return y
+}
+
+func decAbSt(s string) string {
+	usStDict := map[string]string{
+		"AK": "Alaska",
+		"AL": "Alabama",
+		"AR": "Arkansas",
+		"AS": "American Samoa",
+		"AZ": "Arizona",
+		"CA": "California",
+		"CO": "Colorado",
+		"CT": "Connecticut",
+		"DC": "District of Columbia",
+		"DE": "Delaware",
+		"FL": "Florida",
+		"GA": "Georgia",
+		"GU": "Guam",
+		"HI": "Hawaii",
+		"IA": "Iowa",
+		"ID": "Idaho",
+		"IL": "Illinois",
+		"IN": "Indiana",
+		"KS": "Kansas",
+		"KY": "Kentucky",
+		"LA": "Louisiana",
+		"MA": "Massachusetts",
+		"MD": "Maryland",
+		"ME": "Maine",
+		"MI": "Michigan",
+		"MN": "Minnesota",
+		"MO": "Missouri",
+		"MP": "Northern Mariana Islands",
+		"MS": "Mississippi",
+		"MT": "Montana",
+		"NA": "National",
+		"NC": "North Carolina",
+		"ND": "North Dakota",
+		"NE": "Nebraska",
+		"NH": "New Hampshire",
+		"NJ": "New Jersey",
+		"NM": "New Mexico",
+		"NV": "Nevada",
+		"NY": "New York",
+		"OH": "Ohio",
+		"OK": "Oklahoma",
+		"OR": "Oregon",
+		"PA": "Pennsylvania",
+		"PR": "Puerto Rico",
+		"RI": "Rhode Island",
+		"SC": "South Carolina",
+		"SD": "South Dakota",
+		"TN": "Tennessee",
+		"TX": "Texas",
+		"UT": "Utah",
+		"VA": "Virginia",
+		"VI": "Virgin Islands",
+		"VT": "Vermont",
+		"WA": "Washington",
+		"WI": "Wisconsin",
+		"WV": "West Virginia",
+		"WY": "Wyoming"}
+	if ds, ok := usStDict[s]; ok {
+		return ds
+	}
+	return s
 }

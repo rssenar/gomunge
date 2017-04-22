@@ -1,13 +1,12 @@
 package main
 
 import (
+	"encoding/csv"
+	"io"
+	"log"
+	"os"
 	"sync"
 	"time"
-)
-
-var (
-	param = newDataInfo()
-	wg    sync.WaitGroup
 )
 
 type customer struct {
@@ -36,15 +35,47 @@ type customer struct {
 	KBB        string    `json:"KBB"`
 }
 
+var param = newDataInfo()
+
 func main() {
-	wg.Add(1000)
-	go tasksFactory()
+	var wg sync.WaitGroup
+
+	timer := time.Now()
+	log.Println("Processing Data...")
+
+	go func() {
+		reader := csv.NewReader(os.Stdin)
+		for ctr := 0; ; ctr++ {
+			rec, err := reader.Read()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				log.Fatalf("Error processing CSV file: %v \n", err)
+			}
+			if ctr == 0 {
+				param.setColumns(rec)
+			} else {
+				param.tasks <- rec
+			}
+		}
+		close(param.tasks)
+	}()
+
 	go func() {
 		wg.Wait()
 		close(param.results)
 	}()
-	for i := 0; i < 1000; i++ {
-		go processTasks()
+
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			defer wg.Done()
+			for t := range param.tasks {
+				param.results <- param.parseColumns(t)
+			}
+		}()
 	}
+
 	outputCSV()
+	log.Printf("Completed in %v", time.Since(timer))
 }
