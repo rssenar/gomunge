@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/csv"
-	"fmt"
-	"io"
 	"log"
-	"os"
 	"sync"
 	"time"
 )
+
+const gophers = 100
 
 type customer struct {
 	ID         int       `json:"id"`
@@ -38,9 +36,9 @@ type customer struct {
 
 func main() {
 	timer := time.Now()
-	param := newDataInfo()
 	log.Println("Processing Data...")
 
+	param := newDataInfo()
 	var wg sync.WaitGroup
 
 	go func() {
@@ -48,32 +46,11 @@ func main() {
 		close(param.results)
 	}()
 
-	go func() {
-		reader := csv.NewReader(os.Stdin)
-		for ctr := 0; ; ctr++ {
-			rec, err := reader.Read()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				log.Fatalf("Error processing CSV file: %v \n", err)
-			}
-			if ctr == 0 {
-				param.setColumns(rec)
-			} else {
-				param.tasks <- rec
-			}
-		}
-		close(param.tasks)
-	}()
+	go taskGen(param)
 
-	wg.Add(100)
-	for i := 0; i < 100; i++ {
-		go func() {
-			defer wg.Done()
-			for task := range param.tasks {
-				param.results <- param.process(task)
-			}
-		}()
+	wg.Add(gophers)
+	for i := 0; i < gophers; i++ {
+		go process(param, &wg)
 	}
 
 	out, fout := output()
@@ -83,7 +60,7 @@ func main() {
 	defer fdupe.Close()
 
 	for cust := range param.results {
-		addr := fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
+		addr := suppression(cust)
 		if _, ok := param.dupes[addr]; !ok {
 			param.dupes[addr]++
 			out(cust)
@@ -91,6 +68,5 @@ func main() {
 			dupe(cust)
 		}
 	}
-
 	log.Printf("Completed in %v\n", time.Since(timer))
 }

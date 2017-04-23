@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/blendlabs/go-name-parser"
@@ -32,8 +34,6 @@ func newDataInfo() *dataInfo {
 		output:      make(chan *customer),
 	}
 }
-
-func dedupe(*customer) {}
 
 func (c *dataInfo) setColumns(record []string) {
 	for idx, value := range record {
@@ -225,6 +225,31 @@ func parsePhone(p string) string {
 	}
 }
 
+func taskGenerator(param *dataInfo) {
+	reader := csv.NewReader(os.Stdin)
+	for ctr := 0; ; ctr++ {
+		rec, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatalf("Error processing CSV file: %v \n", err)
+		}
+		if ctr == 0 {
+			param.setColumns(rec)
+		} else {
+			param.tasks <- rec
+		}
+	}
+	close(param.tasks)
+}
+
+func process(param *dataInfo, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for task := range param.tasks {
+		param.results <- param.process(task)
+	}
+}
+
 func output() (func(x *customer), *os.File) {
 	file, err := os.Create("./test.csv")
 	if err != nil {
@@ -341,4 +366,8 @@ func dupes() (func(x *customer), *os.File) {
 		newwriter.Write(r)
 		newwriter.Flush()
 	}, file
+}
+
+func suppression(cust *customer) string {
+	return fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
 }
