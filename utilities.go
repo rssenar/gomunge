@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -18,7 +19,7 @@ type dataInfo struct {
 	suppression map[string]string
 	tasks       chan []string
 	results     chan *customer
-	duplicates  chan *customer
+	output      chan *customer
 }
 
 func newDataInfo() *dataInfo {
@@ -28,19 +29,11 @@ func newDataInfo() *dataInfo {
 		suppression: make(map[string]string),
 		tasks:       make(chan []string),
 		results:     make(chan *customer),
-		duplicates:  make(chan *customer),
+		output:      make(chan *customer),
 	}
 }
 
-func (c *dataInfo) deDupe(cust *customer) (*customer, error) {
-	addr := fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
-	if _, ok := c.dupes[addr]; ok {
-		err := fmt.Errorf("%v is a duplicate record", addr)
-		return nil, err
-	}
-	c.dupes[addr]++
-	return cust, nil
-}
+func dedupe(*customer) {}
 
 func (c *dataInfo) setColumns(record []string) {
 	for idx, value := range record {
@@ -101,7 +94,7 @@ func (c *dataInfo) setColumns(record []string) {
 	}
 }
 
-func (c *dataInfo) parseColumns(record []string) *customer {
+func (c *dataInfo) process(record []string) *customer {
 	customer := &customer{}
 	for header := range c.columns {
 		switch header {
@@ -232,8 +225,12 @@ func parsePhone(p string) string {
 	}
 }
 
-func outputCSV() {
-	writer := csv.NewWriter(os.Stdout)
+func output(cust chan *customer) {
+	file, err := os.Create("~/desktop/output.csv")
+	if err != nil {
+		log.Println(err)
+	}
+	writer := csv.NewWriter(file)
 	header := []string{
 		"First Name",
 		"MI",
@@ -260,7 +257,7 @@ func outputCSV() {
 		"Date_Month",
 	}
 	writer.Write(header)
-	for x := range param.results {
+	for x := range cust {
 		var r []string
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
@@ -309,6 +306,34 @@ func outputCSV() {
 		} else {
 			r = append(r, "")
 		}
+		writer.Write(r)
+	}
+	writer.Flush()
+}
+
+func outputDupes(cust chan *customer) {
+	file, err := os.Create("/Users/richardsenar/desktop/dupes.csv")
+	if err != nil {
+		log.Println(err)
+	}
+	writer := csv.NewWriter(file)
+	header := []string{
+		"First Name",
+		"Last Name",
+		"Address",
+		"City",
+		"State",
+		"Zip",
+	}
+	writer.Write(header)
+	for x := range cust {
+		var r []string
+		r = append(r, x.Firstname)
+		r = append(r, x.Lastname)
+		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+		r = append(r, x.City)
+		r = append(r, x.State)
+		r = append(r, x.Zip)
 		writer.Write(r)
 	}
 	writer.Flush()

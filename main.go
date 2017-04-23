@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -35,13 +36,17 @@ type customer struct {
 	KBB        string    `json:"KBB"`
 }
 
-var param = newDataInfo()
-
 func main() {
+	timer := time.Now()
+	param := newDataInfo()
+	fmt.Println("Processing Data...")
+
 	var wg sync.WaitGroup
 
-	timer := time.Now()
-	log.Println("Processing Data...")
+	go func() {
+		wg.Wait()
+		close(param.results)
+	}()
 
 	go func() {
 		reader := csv.NewReader(os.Stdin)
@@ -61,21 +66,29 @@ func main() {
 		close(param.tasks)
 	}()
 
-	go func() {
-		wg.Wait()
-		close(param.results)
-	}()
-
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
 			defer wg.Done()
-			for t := range param.tasks {
-				param.results <- param.parseColumns(t)
+			for task := range param.tasks {
+				param.results <- param.process(task)
 			}
 		}()
 	}
 
-	outputCSV()
-	log.Printf("Completed in %v", time.Since(timer))
+	go func() {
+		for r := range param.results {
+			addr := fmt.Sprintf("%v %v %v", r.Address1, r.Address2, r.Zip)
+			if _, ok := param.dupes[addr]; !ok {
+				param.dupes[addr]++
+				param.output <- r
+			} else {
+				log.Printf("DUPLICATE RECORDS : %v %v %v %v %v %v %v\n", r.Firstname, r.Lastname, r.Address1, r.Address2, r.City, r.State, r.Zip)
+			}
+		}
+		close(param.output)
+	}()
+
+	output(param.output)
+	fmt.Printf("Completed in %v\n", time.Since(timer))
 }
