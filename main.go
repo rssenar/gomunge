@@ -39,7 +39,7 @@ type customer struct {
 func main() {
 	timer := time.Now()
 	param := newDataInfo()
-	fmt.Println("Processing Data...")
+	log.Println("Processing Data...")
 
 	var wg sync.WaitGroup
 
@@ -76,19 +76,21 @@ func main() {
 		}()
 	}
 
-	go func() {
-		for r := range param.results {
-			addr := fmt.Sprintf("%v %v %v", r.Address1, r.Address2, r.Zip)
-			if _, ok := param.dupes[addr]; !ok {
-				param.dupes[addr]++
-				param.output <- r
-			} else {
-				log.Printf("DUPLICATE RECORDS : %v %v %v %v %v %v %v\n", r.Firstname, r.Lastname, r.Address1, r.Address2, r.City, r.State, r.Zip)
-			}
-		}
-		close(param.output)
-	}()
+	out, fout := output()
+	defer fout.Close()
 
-	output(param.output)
-	fmt.Printf("Completed in %v\n", time.Since(timer))
+	dupe, fdupe := dupes()
+	defer fdupe.Close()
+
+	for cust := range param.results {
+		addr := fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
+		if _, ok := param.dupes[addr]; !ok {
+			param.dupes[addr]++
+			out(cust)
+		} else {
+			dupe(cust)
+		}
+	}
+
+	log.Printf("Completed in %v\n", time.Since(timer))
 }
