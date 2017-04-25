@@ -16,22 +16,22 @@ import (
 )
 
 type dataInfo struct {
-	columns     map[string]int
-	dupes       map[string]int
-	suppression map[string]string
-	tasks       chan []string
-	results     chan *customer
-	output      chan *customer
+	columns map[string]int
+	dupes   map[string]int
+	VIN     map[string]int
+	tasks   chan []string
+	results chan *customer
+	output  chan *customer
 }
 
 func newDataInfo() *dataInfo {
 	return &dataInfo{
-		columns:     make(map[string]int),
-		dupes:       make(map[string]int),
-		suppression: make(map[string]string),
-		tasks:       make(chan []string),
-		results:     make(chan *customer),
-		output:      make(chan *customer),
+		columns: make(map[string]int),
+		dupes:   make(map[string]int),
+		VIN:     make(map[string]int),
+		tasks:   make(chan []string),
+		results: make(chan *customer),
+		output:  make(chan *customer),
 	}
 }
 
@@ -226,7 +226,11 @@ func parsePhone(p string) string {
 }
 
 func taskGenerator(param *dataInfo) {
-	reader := csv.NewReader(os.Stdin)
+	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	reader := csv.NewReader(file)
 	for ctr := 0; ; ctr++ {
 		rec, err := reader.Read()
 		if err == io.EOF {
@@ -251,41 +255,49 @@ func process(param *dataInfo, wg *sync.WaitGroup) {
 }
 
 func output() (func(x *customer), *os.File) {
-	file, err := os.Create("./test.csv")
+	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 	writer := csv.NewWriter(file)
 	header := []string{
-		"First Name",
+		"Key_Head",
+		"Key_Counter",
+		"Customer ID",
+		"FirstName",
 		"MI",
-		"Last Name",
-		"Address",
+		"LastName",
+		"Address1",
 		"City",
 		"State",
 		"Zip",
-		"Home Phone",
-		"Business Phone",
-		"Mobile Phone",
-		"VIN #",
+		"HPH",
+		"BPH",
+		"CPH",
+		"VIN",
 		"Year",
 		"Make",
 		"Model",
-		"Delivery Date",
-		"Last Serv Date",
-		"Walk Seq",
+		"DelDate",
+		"Date",
+		"DSF_WALK_SEQ",
 		"CRRT",
 		"KBB",
-		"DelDate_Year",
-		"DelDate_Month",
-		"Date_Year",
-		"Date_Month",
+		"DD_Year",
+		"DD_Month",
+		"D_Year",
+		"D_Month",
 	}
 	writer.Write(header)
 	writer.Flush()
+	counter := genSeqNum()
 	return func(x *customer) {
+		ctr := counter
 		newwriter := writer
 		var r []string
+		r = append(r, fmt.Sprintf("%v", x.pk.Head))
+		r = append(r, fmt.Sprintf("%v", x.pk.Counter))
+		r = append(r, fmt.Sprintf("%v%v", source, ctr()+100000))
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
 		r = append(r, x.Lastname)
@@ -338,10 +350,48 @@ func output() (func(x *customer), *os.File) {
 	}, file
 }
 
-func dupes() (func(x *customer), *os.File) {
-	file, err := os.Create("./log.csv")
+func errStatus() (func(x *customer), *os.File) {
+	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
+	}
+	writer := csv.NewWriter(file)
+	header := []string{
+		"Seq#",
+		"FirstName",
+		"LastName",
+		"Address",
+		"City",
+		"State",
+		"Zip",
+		"VIN",
+		"Status",
+	}
+	writer.Write(header)
+	writer.Flush()
+	counter := genSeqNum()
+	return func(x *customer) {
+		ctr := counter
+		newwriter := writer
+		var r []string
+		r = append(r, fmt.Sprintf("%v", ctr()))
+		r = append(r, x.Firstname)
+		r = append(r, x.Lastname)
+		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+		r = append(r, x.City)
+		r = append(r, x.State)
+		r = append(r, x.Zip)
+		r = append(r, x.VIN)
+		r = append(r, x.ErrStat)
+		newwriter.Write(r)
+		newwriter.Flush()
+	}, file
+}
+
+func outputPhones() (func(x *customer), *os.File) {
+	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
+	if err != nil {
+		log.Fatalln(err)
 	}
 	writer := csv.NewWriter(file)
 	header := []string{
@@ -351,23 +401,46 @@ func dupes() (func(x *customer), *os.File) {
 		"City",
 		"State",
 		"Zip",
+		"Home Phone",
 	}
 	writer.Write(header)
 	writer.Flush()
+	counter := genSeqNum()
 	return func(x *customer) {
+		ctr := counter
 		newwriter := writer
 		var r []string
-		r = append(r, x.Firstname)
-		r = append(r, x.Lastname)
-		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
-		r = append(r, x.City)
-		r = append(r, x.State)
-		r = append(r, x.Zip)
-		newwriter.Write(r)
-		newwriter.Flush()
+		if x.HPH != "" {
+			r = append(r, fmt.Sprintf("%v", ctr()))
+			r = append(r, x.Firstname)
+			r = append(r, x.Lastname)
+			r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+			r = append(r, x.City)
+			r = append(r, x.State)
+			r = append(r, x.Zip)
+			r = append(r, x.HPH)
+			newwriter.Write(r)
+			newwriter.Flush()
+		}
 	}, file
 }
 
-func suppression(cust *customer) string {
+func comb(cust *customer) string {
 	return fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
+}
+
+func genSeqNum() func() int {
+	i := 0
+	return func() int {
+		i++
+		return i
+	}
+}
+
+func genPrimaryKeyCounter() func() int {
+	i := 100000000
+	return func() int {
+		i++
+		return i
+	}
 }

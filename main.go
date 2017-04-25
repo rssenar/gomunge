@@ -1,14 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/boltdb/bolt"
 )
 
-const gophers = 100
+type pk struct {
+	Head    string `json:"head"`
+	Counter int    `json:"primary_key_counter"`
+}
 
 type customer struct {
+	pk
 	ID         int       `json:"id"`
 	Firstname  string    `json:"first_name"`
 	MI         string    `json:"middle_name"`
@@ -32,41 +39,81 @@ type customer struct {
 	DSFwalkseq string    `json:"DSF_Walk_Sequence"`
 	CRRT       string    `json:"CRRT"`
 	KBB        string    `json:"KBB"`
+	ErrStat    string    `json:"Status"`
 }
 
-func main() {
-	timer := time.Now()
-	log.Println("Processing Data...")
+func init() {}
 
+func main() {
+	// open/create boltDB database
+	db, err := bolt.Open("~/Dropbox/Resource/customer.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	log.Println("Processing Data...")
+	// set timer & primKeySeq
+	timer := time.Now()
+	pkCounter := genPrimaryKeyCounter()
+
+	// Initialize data paramters
 	param := newDataInfo()
+
 	var wg sync.WaitGroup
 
+	// set wait group to terminate after worker
+	// go routines have all finished
 	go func() {
 		wg.Wait()
 		close(param.results)
 	}()
-
-	go taskGen(param)
-
+	// read CSV file from Stdin and send to the task channel
+	go taskGenerator(param)
 	wg.Add(gophers)
 	for i := 0; i < gophers; i++ {
 		go process(param, &wg)
 	}
 
-	out, fout := output()
+	// Create CSV output file
+	sendOut, fout := output()
 	defer fout.Close()
-
-	dupe, fdupe := dupes()
+	// Create Dupes output file
+	sendErrStat, fdupe := errStatus()
 	defer fdupe.Close()
+	// Create Phones output file
+	sendPhone, fphone := outputPhones()
+	defer fphone.Close()
 
-	for cust := range param.results {
-		addr := suppression(cust)
-		if _, ok := param.dupes[addr]; !ok {
-			param.dupes[addr]++
-			out(cust)
-		} else {
-			dupe(cust)
+	// Range over reuslts channel and check for ducplicate records
+	// output clean CSV, Duplicates & Phone files
+	for c := range param.results {
+		c.pk.Head = fileName
+		c.pk.Counter = pkCounter()
+
+		// Check for Duplicate Address
+		if cnt, ok := param.dupes[comb(c)]; ok {
+			c.ErrStat = fmt.Sprintf("Duplicate Address (%v)", cnt)
+		}
+		param.dupes[comb(c)]++
+
+		// Check for Duplicate VIN numbers
+		if c.VIN != "" {
+			if cnt, ok := param.VIN[c.VIN]; ok {
+				c.ErrStat = fmt.Sprintf("Duplicate VIN (%v)", cnt)
+			}
+		}
+		param.VIN[c.VIN]++
+
+		// output processed and duplicate files
+		switch {
+		case c.ErrStat == "":
+			sendOut(c)
+			sendPhone(c)
+		default:
+			sendErrStat(c)
 		}
 	}
+
 	log.Printf("Completed in %v\n", time.Since(timer))
 }

@@ -1,5 +1,14 @@
 package main
 
+import "os"
+
+// Set # of workers to initialize
+const gophers = 100
+const source = "D"
+
+var fileName = os.Args[1][:len(os.Args[1])-4]
+var custBucket = []byte("Customer")
+
 func decodeYr(y string) string {
 	yrDecDict := map[string]string{
 		"0":  "2000",
