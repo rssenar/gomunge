@@ -42,10 +42,10 @@ type customer struct {
 	ErrStat    string    `json:"Status"`
 }
 
-func init() {}
-
 func main() {
-	// open/create boltDB database
+	bkt := []byte("customer")
+
+	// open boltDB database
 	db, err := bolt.Open("~/Dropbox/Resource/customer.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -110,6 +110,31 @@ func main() {
 		case c.ErrStat == "":
 			sendOut(c)
 			sendPhone(c)
+			// add to database
+			db.Update(func(tx *bolt.Tx) error {
+				keyBytes, err := marshal(c.pk)
+				if err != nil {
+					return err
+				}
+
+				dataBytes, err := marshal(c)
+				if err != nil {
+					return err
+				}
+
+				b, err := tx.CreateBucketIfNotExists(bkt)
+				if err != nil {
+					return err
+				}
+
+				err = b.Put(keyBytes, dataBytes)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+
 		default:
 			sendErrStat(c)
 		}
