@@ -1,6 +1,19 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"log"
+
+	"github.com/boltdb/bolt"
+)
+
+func initializeDB() *bolt.DB {
+	db, err := bolt.Open("~/Dropbox/Resource/customer.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return db
+}
 
 func marshal(pointerToData interface{}) ([]byte, error) {
 	buff, err := json.Marshal(pointerToData)
