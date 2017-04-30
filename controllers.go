@@ -227,9 +227,7 @@ func parsePhone(p string) string {
 
 func taskGenerator(param *dataInfo) {
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
-	if err != nil {
-		log.Fatalln(err)
-	}
+	checkErr(err)
 	reader := csv.NewReader(file)
 	for ctr := 0; ; ctr++ {
 		rec, err := reader.Read()
@@ -256,9 +254,7 @@ func process(param *dataInfo, wg *sync.WaitGroup) {
 
 func output() (func(x *customer), *os.File) {
 	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
-	if err != nil {
-		log.Fatalln(err)
-	}
+	checkErr(err)
 	writer := csv.NewWriter(file)
 	header := []string{
 		"Key_Head",
@@ -295,8 +291,6 @@ func output() (func(x *customer), *os.File) {
 		ctr := counter
 		newwriter := writer
 		var r []string
-		r = append(r, fmt.Sprintf("%v", x.pk.Head))
-		r = append(r, fmt.Sprintf("%v", x.pk.Counter))
 		r = append(r, fmt.Sprintf("%v%v", source, ctr()+100000))
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
@@ -352,9 +346,7 @@ func output() (func(x *customer), *os.File) {
 
 func errStatus() (func(x *customer), *os.File) {
 	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
-	if err != nil {
-		log.Fatalln(err)
-	}
+	checkErr(err)
 	writer := csv.NewWriter(file)
 	header := []string{
 		"Seq#",
@@ -388,30 +380,28 @@ func errStatus() (func(x *customer), *os.File) {
 	}, file
 }
 
-func outputPhones() (func(x *customer), *os.File) {
-	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	writer := csv.NewWriter(file)
-	header := []string{
-		"First Name",
-		"Last Name",
-		"Address",
-		"City",
-		"State",
-		"Zip",
-		"Home Phone",
-	}
-	writer.Write(header)
-	writer.Flush()
-	counter := genSeqNum()
-	return func(x *customer) {
-		ctr := counter
-		newwriter := writer
+func outputPhones(x *customer) {
+	for ctr := 0; ; ctr++ {
+		var writer *csv.Writer
+		if ctr == 0 {
+			file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
+			checkErr(err)
+			writer := csv.NewWriter(file)
+			header := []string{
+				"First Name",
+				"Last Name",
+				"Address",
+				"City",
+				"State",
+				"Zip",
+				"Home Phone",
+			}
+			writer.Write(header)
+			writer.Flush()
+		}
 		var r []string
 		if x.HPH != "" {
-			r = append(r, fmt.Sprintf("%v", ctr()))
+			r = append(r, fmt.Sprintf("%v", ctr))
 			r = append(r, x.Firstname)
 			r = append(r, x.Lastname)
 			r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
@@ -419,10 +409,10 @@ func outputPhones() (func(x *customer), *os.File) {
 			r = append(r, x.State)
 			r = append(r, x.Zip)
 			r = append(r, x.HPH)
-			newwriter.Write(r)
-			newwriter.Flush()
+			writer.Write(r)
+			writer.Flush()
 		}
-	}, file
+	}
 }
 
 func comb(cust *customer) string {
@@ -431,14 +421,6 @@ func comb(cust *customer) string {
 
 func genSeqNum() func() int {
 	i := 0
-	return func() int {
-		i++
-		return i
-	}
-}
-
-func genPrimaryKeyCounter() func() int {
-	i := 100000000
 	return func() int {
 		i++
 		return i
