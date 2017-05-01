@@ -21,7 +21,6 @@ type dataInfo struct {
 	VIN     map[string]int
 	tasks   chan []string
 	results chan *customer
-	output  chan *customer
 }
 
 func newDataInfo() *dataInfo {
@@ -31,7 +30,6 @@ func newDataInfo() *dataInfo {
 		VIN:     make(map[string]int),
 		tasks:   make(chan []string),
 		results: make(chan *customer),
-		output:  make(chan *customer),
 	}
 }
 
@@ -252,9 +250,10 @@ func process(param *dataInfo, wg *sync.WaitGroup) {
 	}
 }
 
-func output() (func(x *customer), *os.File) {
+func outputCSV(cust []*customer) {
 	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
 	checkErr(err)
+	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
 		"Key_Head",
@@ -286,12 +285,10 @@ func output() (func(x *customer), *os.File) {
 	}
 	writer.Write(header)
 	writer.Flush()
-	counter := genSeqNum()
-	return func(x *customer) {
-		ctr := counter
-		newwriter := writer
+
+	for idx, x := range cust {
 		var r []string
-		r = append(r, fmt.Sprintf("%v%v", source, ctr()+100000))
+		r = append(r, fmt.Sprintf("%v%v", source, idx+100000))
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
 		r = append(r, x.Lastname)
@@ -339,14 +336,15 @@ func output() (func(x *customer), *os.File) {
 		} else {
 			r = append(r, "")
 		}
-		newwriter.Write(r)
-		newwriter.Flush()
-	}, file
+		writer.Write(r)
+		writer.Flush()
+	}
 }
 
-func errStatus() (func(x *customer), *os.File) {
+func errStatusCSV(cust []*customer) {
 	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
 	checkErr(err)
+	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
 		"Seq#",
@@ -361,12 +359,10 @@ func errStatus() (func(x *customer), *os.File) {
 	}
 	writer.Write(header)
 	writer.Flush()
-	counter := genSeqNum()
-	return func(x *customer) {
-		ctr := counter
-		newwriter := writer
+
+	for idx, x := range cust {
 		var r []string
-		r = append(r, fmt.Sprintf("%v", ctr()))
+		r = append(r, fmt.Sprintf("%v", idx))
 		r = append(r, x.Firstname)
 		r = append(r, x.Lastname)
 		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
@@ -375,33 +371,33 @@ func errStatus() (func(x *customer), *os.File) {
 		r = append(r, x.Zip)
 		r = append(r, x.VIN)
 		r = append(r, x.ErrStat)
-		newwriter.Write(r)
-		newwriter.Flush()
-	}, file
+		writer.Write(r)
+		writer.Flush()
+	}
 }
 
-func outputPhones(x *customer) {
-	for ctr := 0; ; ctr++ {
-		var writer *csv.Writer
-		if ctr == 0 {
-			file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
-			checkErr(err)
-			writer := csv.NewWriter(file)
-			header := []string{
-				"First Name",
-				"Last Name",
-				"Address",
-				"City",
-				"State",
-				"Zip",
-				"Home Phone",
-			}
-			writer.Write(header)
-			writer.Flush()
-		}
+func phonesCSV(cust []*customer) {
+	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
+	checkErr(err)
+	defer file.Close()
+	writer = csv.NewWriter(file)
+	header := []string{
+		"Ctr",
+		"First Name",
+		"Last Name",
+		"Address",
+		"City",
+		"State",
+		"Zip",
+		"Home Phone",
+	}
+	writer.Write(header)
+	writer.Flush()
+
+	for idx, x := range cust {
 		var r []string
 		if x.HPH != "" {
-			r = append(r, fmt.Sprintf("%v", ctr))
+			r = append(r, fmt.Sprintf("%v", idx))
 			r = append(r, x.Firstname)
 			r = append(r, x.Lastname)
 			r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 )
+
+var writer *csv.Writer
 
 type customer struct {
 	ID         int       `json:"id"`
@@ -56,23 +59,20 @@ func main() {
 		go process(param, &wg)
 	}
 
-	// Create CSV output file
-	sendOut, fout := output()
-	defer fout.Close()
-	// Create Dupes output file
-	sendErrStat, fdupe := errStatus()
-	defer fdupe.Close()
+	// range over task channel to drain channel
+	// create 3 slices: output, dupes & phones
+	var outputRecs []*customer
+	var duplicatesRecs []*customer
+	var phonesRecs []*customer
 
-	// Range over reuslts channel and check for ducplicate records
-	// output clean CSV, Duplicates & Phone files
 	for c := range param.results {
-		// Check for Duplicate Address
+		// Check for Duplicate Address & update ErrStat struct info
 		if cnt, ok := param.dupes[comb(c)]; ok {
 			c.ErrStat = fmt.Sprintf("Duplicate Address (%v)", cnt)
 		}
 		param.dupes[comb(c)]++
 
-		// Check for Duplicate VIN numbers
+		// Check for Duplicate VIN numbers & update ErrStat struct info
 		if c.VIN != "" {
 			if cnt, ok := param.VIN[c.VIN]; ok {
 				c.ErrStat = fmt.Sprintf("Duplicate VIN (%v)", cnt)
@@ -80,14 +80,22 @@ func main() {
 		}
 		param.VIN[c.VIN]++
 
-		// output processed and duplicate files
-		switch {
-		case c.ErrStat == "":
-			sendOut(c)
-			outputPhones(c)
-		default:
-			sendErrStat(c)
+		if c.ErrStat == "" {
+			outputRecs = append(outputRecs, c)
+			phonesRecs = append(phonesRecs, c)
+		} else {
+			duplicatesRecs = append(duplicatesRecs, c)
 		}
+	}
+
+	if len(outputRecs) != 0 {
+		outputCSV(outputRecs)
+	}
+	if len(phonesRecs) != 0 {
+		phonesCSV(phonesRecs)
+	}
+	if len(duplicatesRecs) != 0 {
+		errStatusCSV(duplicatesRecs)
 	}
 
 	log.Printf("Completed in %v\n", time.Since(timer))
