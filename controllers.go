@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -15,26 +16,68 @@ import (
 	"github.com/blendlabs/go-name-parser"
 )
 
+type customer struct {
+	ID         int       `json:"id"`
+	Firstname  string    `json:"first_name"`
+	MI         string    `json:"middle_name"`
+	Lastname   string    `json:"last_name"`
+	Address1   string    `json:"address_1"`
+	Address2   string    `json:"address_2"`
+	City       string    `json:"city"`
+	State      string    `json:"state"`
+	Zip        string    `json:"zip"`
+	Zip4       string    `json:"zip_4"`
+	HPH        string    `json:"home_phone"`
+	BPH        string    `json:"business_phone"`
+	CPH        string    `json:"mobile_phone"`
+	Email      string    `json:"email"`
+	VIN        string    `json:"VIN"`
+	Year       string    `json:"year"`
+	Make       string    `json:"make"`
+	Model      string    `json:"model"`
+	DelDate    time.Time `json:"delivery_date"`
+	Date       time.Time `json:"date"`
+	Radius     string    `json:"radius"`
+	DSFwalkseq string    `json:"DSF_Walk_Sequence"`
+	CRRT       string    `json:"CRRT"`
+	KBB        string    `json:"KBB"`
+	ErrStat    string    `json:"Status"`
+}
+
 type dataInfo struct {
-	columns map[string]int
-	dupes   map[string]int
-	VIN     map[string]int
-	tasks   chan []string
-	results chan *customer
+	config      *initConfig
+	columns     map[string]int
+	dupes       map[string]int
+	VIN         map[string]int
+	coordinates map[string][]string
+	SCFFac      map[string]string
+	DDUFac      map[string]string
+	Ethnicity   map[string]int
+	DNM         map[string]int
+	GenSupp     map[string]int
+	tasks       chan []string
+	results     chan *customer
 }
 
 func newDataInfo() *dataInfo {
 	return &dataInfo{
-		columns: make(map[string]int),
-		dupes:   make(map[string]int),
-		VIN:     make(map[string]int),
-		tasks:   make(chan []string),
-		results: make(chan *customer),
+		config:      loadConfig(),
+		coordinates: loadZipCor(),
+		SCFFac:      loadSCFFac(),
+		DDUFac:      loadDDUFac(),
+		Ethnicity:   loadHist(),
+		DNM:         loadDNM(),
+		GenSupp:     loadGenS(),
+		columns:     make(map[string]int),
+		dupes:       make(map[string]int),
+		VIN:         make(map[string]int),
+		tasks:       make(chan []string),
+		results:     make(chan *customer),
 	}
 }
 
-func (c *dataInfo) setColumns(record []string) {
-	for idx, value := range record {
+func (c *dataInfo) setColumns(rec []string) {
+	for idx, value := range rec {
 		switch {
 		case regexp.MustCompile(`(?i)ful.+me`).MatchString(value):
 			c.columns["fullname"] = idx
@@ -44,6 +87,8 @@ func (c *dataInfo) setColumns(record []string) {
 			c.columns["mi"] = idx
 		case regexp.MustCompile(`(?i)las.+me`).MatchString(value):
 			c.columns["lastname"] = idx
+		case regexp.MustCompile(`(?i)^address$`).MatchString(value):
+			c.columns["address1"] = idx
 		case regexp.MustCompile(`(?i)addr.+1`).MatchString(value):
 			c.columns["address1"] = idx
 		case regexp.MustCompile(`(?i)addr.+2`).MatchString(value):
@@ -55,6 +100,8 @@ func (c *dataInfo) setColumns(record []string) {
 		case regexp.MustCompile(`(?i)^zip$`).MatchString(value):
 			c.columns["zip"] = idx
 		case regexp.MustCompile(`(?i)^zip4$`).MatchString(value):
+			c.columns["zip4"] = idx
+		case regexp.MustCompile(`(?i)^4zip$`).MatchString(value):
 			c.columns["zip4"] = idx
 		case regexp.MustCompile(`(?i)^hph$`).MatchString(value):
 			c.columns["hph"] = idx
@@ -97,24 +144,16 @@ func (c *dataInfo) process(record []string) *customer {
 	for header := range c.columns {
 		switch header {
 		case "fullname":
-			if customer.Firstname == "" || customer.Lastname == "" {
-				name := names.Parse(record[c.columns[header]])
-				customer.Firstname = tCase(name.FirstName)
-				customer.MI = tCase(name.MiddleName)
-				customer.Lastname = tCase(name.LastName)
-			}
+			name := names.Parse(record[c.columns[header]])
+			customer.Firstname = tCase(name.FirstName)
+			customer.MI = tCase(name.MiddleName)
+			customer.Lastname = tCase(name.LastName)
 		case "firstname":
-			if customer.Firstname == "" {
-				customer.Firstname = tCase(record[c.columns[header]])
-			}
+			customer.Firstname = tCase(record[c.columns[header]])
 		case "mi":
-			if customer.MI == "" {
-				customer.MI = tCase(record[c.columns[header]])
-			}
+			customer.MI = tCase(record[c.columns[header]])
 		case "lastname":
-			if customer.Lastname == "" {
-				customer.Lastname = tCase(record[c.columns[header]])
-			}
+			customer.Lastname = tCase(record[c.columns[header]])
 		case "address1":
 			customer.Address1 = tCase(record[c.columns[header]])
 		case "address2":
@@ -124,9 +163,15 @@ func (c *dataInfo) process(record []string) *customer {
 		case "state":
 			customer.State = uCase(record[c.columns[header]])
 		case "zip":
-			customer.Zip, _ = parseZip(record[c.columns[header]])
+			if _, ok := c.columns["zip4"]; ok {
+				customer.Zip, _ = parseZip(record[c.columns[header]])
+			} else {
+				customer.Zip, customer.Zip4 = parseZip(record[c.columns[header]])
+			}
 		case "zip4":
-			_, customer.Zip4 = parseZip(record[c.columns[header]])
+			if _, ok := c.columns["zip4"]; ok {
+				customer.Zip4 = record[c.columns[header]]
+			}
 		case "hph":
 			customer.HPH = parsePhone(record[c.columns[header]])
 		case "bph":
@@ -160,6 +205,14 @@ func (c *dataInfo) process(record []string) *customer {
 				customer.KBB = record[c.columns[header]]
 			}
 		}
+	}
+	customer.ErrStat = checkforBuss(customer.Firstname)
+	customer.ErrStat = checkforBuss(customer.MI)
+	customer.ErrStat = checkforBuss(customer.Lastname)
+
+	if _, ok := c.coordinates[customer.Zip]; ok {
+		clat1, clon2, rlat1, rlon2 := c.getLatLong(strconv.Itoa(c.config.CentZip), customer.Zip)
+		customer.Radius = fmt.Sprintf("%.2f", distance(clat1, clon2, rlat1, rlon2))
 	}
 	return customer
 }
@@ -224,6 +277,7 @@ func parsePhone(p string) string {
 }
 
 func taskGenerator(param *dataInfo) {
+	log.Println("Ingesting Data...")
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
 	checkErr(err)
 	reader := csv.NewReader(file)
@@ -241,6 +295,7 @@ func taskGenerator(param *dataInfo) {
 		}
 	}
 	close(param.tasks)
+	log.Println("Data Ingest Complete...")
 }
 
 func process(param *dataInfo, wg *sync.WaitGroup) {
@@ -251,13 +306,12 @@ func process(param *dataInfo, wg *sync.WaitGroup) {
 }
 
 func outputCSV(cust []*customer) {
+	log.Println("Exporting Processed Output to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
 	checkErr(err)
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
-		"Key_Head",
-		"Key_Counter",
 		"Customer ID",
 		"FirstName",
 		"MI",
@@ -266,6 +320,7 @@ func outputCSV(cust []*customer) {
 		"City",
 		"State",
 		"Zip",
+		"Zip4",
 		"HPH",
 		"BPH",
 		"CPH",
@@ -275,6 +330,7 @@ func outputCSV(cust []*customer) {
 		"Model",
 		"DelDate",
 		"Date",
+		"Radius",
 		"DSF_WALK_SEQ",
 		"CRRT",
 		"KBB",
@@ -296,6 +352,7 @@ func outputCSV(cust []*customer) {
 		r = append(r, x.City)
 		r = append(r, x.State)
 		r = append(r, x.Zip)
+		r = append(r, x.Zip4)
 		r = append(r, x.HPH)
 		r = append(r, x.BPH)
 		r = append(r, x.CPH)
@@ -313,6 +370,7 @@ func outputCSV(cust []*customer) {
 		} else {
 			r = append(r, "")
 		}
+		r = append(r, x.Radius)
 		r = append(r, x.DSFwalkseq)
 		r = append(r, x.CRRT)
 		r = append(r, x.KBB)
@@ -342,6 +400,7 @@ func outputCSV(cust []*customer) {
 }
 
 func errStatusCSV(cust []*customer) {
+	log.Println("Exporting Dupes to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
 	checkErr(err)
 	defer file.Close()
@@ -377,6 +436,7 @@ func errStatusCSV(cust []*customer) {
 }
 
 func phonesCSV(cust []*customer) {
+	log.Println("Exporting Phones to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
 	checkErr(err)
 	defer file.Close()
@@ -421,4 +481,67 @@ func genSeqNum() func() int {
 		i++
 		return i
 	}
+}
+
+func addSep(n int64) string {
+	in := strconv.FormatInt(n, 10)
+	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
+	if in[0] == '-' {
+		in, out[0] = in[1:], '-'
+	}
+
+	for i, j, k := len(in)-1, len(out)-1, 0; ; i, j = i-1, j-1 {
+		out[j] = in[i]
+		if i == 0 {
+			return string(out)
+		}
+		if k++; k == 3 {
+			j, k = j-1, 0
+			out[j] = ','
+		}
+	}
+}
+
+func checkforBuss(s string) string {
+	names := strings.Fields(s)
+	for _, name := range names {
+		for _, dnm := range doNotMail {
+			if tCase(name) == tCase(dnm) {
+				return "Business"
+			}
+		}
+	}
+	return ""
+}
+
+func hsin(theta float64) float64 {
+	// haversin(θ) function
+	return math.Pow(math.Sin(theta/2), 2)
+}
+
+func distance(lat1, lon1, lat2, lon2 float64) float64 {
+	// convert to radians, must cast radius as float to multiply later
+	var la1, lo1, la2, lo2, rad float64
+	la1 = lat1 * math.Pi / 180
+	lo1 = lon1 * math.Pi / 180
+	la2 = lat2 * math.Pi / 180
+	lo2 = lon2 * math.Pi / 180
+	rad = 3959 // Earth radius in Miles
+	// calculate
+	h := hsin(la2-la1) + math.Cos(la1)*math.Cos(la2)*hsin(lo2-lo1)
+	return 2 * rad * math.Asin(math.Sqrt(h))
+}
+
+func (c *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, float64) {
+	recCor := c.coordinates[rZip]
+	cenCor := c.coordinates[cZip]
+	// convert Coordinates tin FLoat64
+	lat1, err := strconv.ParseFloat(cenCor[0], 64)
+	lon1, err := strconv.ParseFloat(cenCor[1], 64)
+	lat2, err := strconv.ParseFloat(recCor[0], 64)
+	lon2, err := strconv.ParseFloat(recCor[1], 64)
+	if err != nil {
+		log.Fatalln("Error processing coordinates", err)
+	}
+	return lat1, lon1, lat2, lon2
 }

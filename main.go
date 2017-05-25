@@ -4,60 +4,41 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 )
 
 var writer *csv.Writer
 
-type customer struct {
-	ID         int       `json:"id"`
-	Firstname  string    `json:"first_name"`
-	MI         string    `json:"middle_name"`
-	Lastname   string    `json:"last_name"`
-	Address1   string    `json:"address_1"`
-	Address2   string    `json:"address_2"`
-	City       string    `json:"city"`
-	State      string    `json:"state"`
-	Zip        string    `json:"zip"`
-	Zip4       string    `json:"zip_4"`
-	HPH        string    `json:"home_phone"`
-	BPH        string    `json:"business_phone"`
-	CPH        string    `json:"mobile_phone"`
-	Email      string    `json:"email"`
-	VIN        string    `json:"VIN"`
-	Year       string    `json:"year"`
-	Make       string    `json:"make"`
-	Model      string    `json:"model"`
-	DelDate    time.Time `json:"delivery_date"`
-	Date       time.Time `json:"date"`
-	DSFwalkseq string    `json:"DSF_Walk_Sequence"`
-	CRRT       string    `json:"CRRT"`
-	KBB        string    `json:"KBB"`
-	ErrStat    string    `json:"Status"`
-}
-
 func main() {
-	log.Println("Processing Data...")
-	// set timer & primKeySeq
+	log.Println("Begin...")
 	timer := time.Now()
 	// Initialize data paramters
 	param := newDataInfo()
 
+	// Validate Central Zip code
+	if _, ok := param.coordinates[strconv.Itoa(param.config.CentZip)]; !ok {
+		log.Fatalln("Invalid central ZIP code")
+	}
+
 	var wg sync.WaitGroup
-	// set wait group to terminate after worker
-	// go routines have finished
-	go func() {
-		wg.Wait()
-		close(param.results)
-	}()
 
 	// read CSV file from Stdin and send to the task channel
 	go taskGenerator(param)
+
 	wg.Add(gophers)
+	log.Printf("Generating %v Goroutines...\n", gophers)
 	for i := 0; i < gophers; i++ {
 		go process(param, &wg)
 	}
+
+	// wait for goroutines to finish
+	go func() {
+		wg.Wait()
+		close(param.results)
+		log.Println("Goroutines Terminated...")
+	}()
 
 	// range over task channel to drain channel
 	// create 3 slices: output, dupes & phones
@@ -65,6 +46,7 @@ func main() {
 	var duplicatesRecs []*customer
 	var phonesRecs []*customer
 
+	counter := 0
 	for c := range param.results {
 		// Check for Duplicate Address & update ErrStat struct info
 		if cnt, ok := param.dupes[comb(c)]; ok {
@@ -80,23 +62,26 @@ func main() {
 		}
 		param.VIN[c.VIN]++
 
-		if c.ErrStat == "" {
+		// Append record to corresponding array
+		switch {
+		case c.ErrStat == "":
 			outputRecs = append(outputRecs, c)
 			phonesRecs = append(phonesRecs, c)
-		} else {
+		default:
 			duplicatesRecs = append(duplicatesRecs, c)
 		}
+		counter++
 	}
 
+	// Generate output files if available
 	if len(outputRecs) != 0 {
-		outputCSV(outputRecs)
+		outputCSV(outputRecs) // Main output
 	}
 	if len(phonesRecs) != 0 {
-		phonesCSV(phonesRecs)
+		phonesCSV(phonesRecs) // output available phones
 	}
 	if len(duplicatesRecs) != 0 {
-		errStatusCSV(duplicatesRecs)
+		errStatusCSV(duplicatesRecs) // output dupes if available
 	}
-
-	log.Printf("Completed in %v\n", time.Since(timer))
+	log.Printf("Completed! processed %v records in %v\n", counter, time.Since(timer))
 }
