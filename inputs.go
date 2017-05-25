@@ -9,6 +9,16 @@ import (
 	"os"
 )
 
+var (
+	configPath    = "/Users/richardsenar/Dropbox/Resource/config.json"
+	zipCorPath    = "/Users/richardsenar/Dropbox/Resource/USZIPCoordinates.csv"
+	scfFacPath    = "/Users/richardsenar/Dropbox/Resource/SCFFacilites.csv"
+	dduFacPath    = "/Users/richardsenar/Dropbox/Resource/DDUFacilites.csv"
+	ethnicityPath = "/Users/richardsenar/Dropbox/Resource/HispLNames.csv"
+	dnmPath       = "/Users/richardsenar/Dropbox/Resource/DoNotMail.csv"
+	gensPath      = "/Users/richardsenar/Dropbox/Resource/_GeneralSuppression.csv"
+)
+
 type initConfig struct {
 	CentZip         int
 	MaxRadius       int
@@ -23,7 +33,7 @@ type initConfig struct {
 }
 
 func loadConfig() *initConfig {
-	conf, err := os.Open("/Users/richardsenar/Dropbox/Resource/config.json")
+	conf, err := os.Open(configPath)
 	if err != nil {
 		log.Fatalln("Cannot open config file", err)
 	}
@@ -38,7 +48,7 @@ func loadConfig() *initConfig {
 }
 
 func loadZipCor() map[string][]string {
-	zipCor, err := os.Open("/Users/richardsenar/Dropbox/Resource/USZIPCoordinates.csv")
+	zipCor, err := os.Open(zipCorPath)
 	if err != nil {
 		log.Fatalln("Cannot open ZipCoord file", err)
 	}
@@ -61,7 +71,7 @@ func loadZipCor() map[string][]string {
 }
 
 func loadSCFFac() map[string]string {
-	f, err := os.Open("/Users/richardsenar/Dropbox/Resource/SCFFacilites.csv")
+	f, err := os.Open(scfFacPath)
 	if err != nil {
 		log.Fatalln("Cannot open SCFFac file", err)
 	}
@@ -84,7 +94,7 @@ func loadSCFFac() map[string]string {
 }
 
 func loadDDUFac() map[string]string {
-	f, err := os.Open("/Users/richardsenar/Dropbox/Resource/DDUFacilites.csv")
+	f, err := os.Open(dduFacPath)
 	if err != nil {
 		log.Fatalln("Cannot open DDUFac file", err)
 	}
@@ -106,8 +116,8 @@ func loadDDUFac() map[string]string {
 	return ddu
 }
 
-func loadHist() map[string]int {
-	f, err := os.Open("/Users/richardsenar/Dropbox/Resource/HispLNames.csv")
+func loadEthnicity() map[string]int {
+	f, err := os.Open(ethnicityPath)
 	if err != nil {
 		log.Fatalln("Cannot open Hisp file", err)
 	}
@@ -130,7 +140,7 @@ func loadHist() map[string]int {
 }
 
 func loadDNM() map[string]int {
-	f, err := os.Open("/Users/richardsenar/Dropbox/Resource/DoNotMail.csv")
+	f, err := os.Open(dnmPath)
 	if err != nil {
 		log.Fatalln("Cannot open DNM file", err)
 	}
@@ -153,7 +163,7 @@ func loadDNM() map[string]int {
 }
 
 func loadGenS() map[string]int {
-	f, err := os.Open("/Users/richardsenar/Dropbox/Resource/_GeneralSuppression.csv")
+	f, err := os.Open(gensPath)
 	if err != nil {
 		log.Fatalln("Cannot open GenSup file", err)
 	}

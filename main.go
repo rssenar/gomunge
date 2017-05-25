@@ -1,15 +1,12 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
 	"log"
 	"strconv"
 	"sync"
 	"time"
 )
-
-var writer *csv.Writer
 
 func main() {
 	log.Println("Begin...")
@@ -43,16 +40,21 @@ func main() {
 	// range over task channel to drain channel
 	// create 3 slices: output, dupes & phones
 	var outputRecs []*customer
-	var duplicatesRecs []*customer
+	var ErrRecs []*customer
 	var phonesRecs []*customer
 
 	counter := 0
 	for c := range param.results {
-		// Check for Duplicate Address & update ErrStat struct info
-		if cnt, ok := param.dupes[comb(c)]; ok {
+		// Check for Duplicate Address on file
+		if cnt, ok := param.dupes[comb(c, param)]; ok {
 			c.ErrStat = fmt.Sprintf("Duplicate Address (%v)", cnt)
 		}
-		param.dupes[comb(c)]++
+		param.dupes[comb(c, param)]++
+
+		// Check for Duplicate Address with Gen suppression file
+		if cnt, ok := param.GenSupp[comb(c, param)]; ok {
+			c.ErrStat = fmt.Sprintf("Suppression File Duplicate (%v)", cnt)
+		}
 
 		// Check for Duplicate VIN numbers & update ErrStat struct info
 		if c.VIN != "" {
@@ -68,7 +70,7 @@ func main() {
 			outputRecs = append(outputRecs, c)
 			phonesRecs = append(phonesRecs, c)
 		default:
-			duplicatesRecs = append(duplicatesRecs, c)
+			ErrRecs = append(ErrRecs, c)
 		}
 		counter++
 	}
@@ -80,8 +82,8 @@ func main() {
 	if len(phonesRecs) != 0 {
 		phonesCSV(phonesRecs) // output available phones
 	}
-	if len(duplicatesRecs) != 0 {
-		errStatusCSV(duplicatesRecs) // output dupes if available
+	if len(ErrRecs) != 0 {
+		errStatusCSV(ErrRecs) // output dupes if available
 	}
 	log.Printf("Completed! processed %v records in %v\n", counter, time.Since(timer))
 }

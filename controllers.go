@@ -65,7 +65,7 @@ func newDataInfo() *dataInfo {
 		coordinates: loadZipCor(),
 		SCFFac:      loadSCFFac(),
 		DDUFac:      loadDDUFac(),
-		Ethnicity:   loadHist(),
+		Ethnicity:   loadEthnicity(),
 		DNM:         loadDNM(),
 		GenSupp:     loadGenS(),
 		columns:     make(map[string]int),
@@ -206,15 +206,48 @@ func (c *dataInfo) process(record []string) *customer {
 			}
 		}
 	}
-	customer.ErrStat = checkforBuss(customer.Firstname)
-	customer.ErrStat = checkforBuss(customer.MI)
-	customer.ErrStat = checkforBuss(customer.Lastname)
+	customer.ErrStat = c.checkforBuss(customer.Firstname)
+	customer.ErrStat = c.checkforBuss(customer.MI)
+	customer.ErrStat = c.checkforBuss(customer.Lastname)
 
 	if _, ok := c.coordinates[customer.Zip]; ok {
 		clat1, clon2, rlat1, rlon2 := c.getLatLong(strconv.Itoa(c.config.CentZip), customer.Zip)
 		customer.Radius = fmt.Sprintf("%.2f", distance(clat1, clon2, rlat1, rlon2))
+	} else {
+		customer.ErrStat = "Invalid ZIP code"
 	}
 	return customer
+}
+
+func (c *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, float64) {
+	recCor := c.coordinates[rZip]
+	cenCor := c.coordinates[cZip]
+	// convert Coordinates tin FLoat64
+	lat1, err := strconv.ParseFloat(cenCor[0], 64)
+	lon1, err := strconv.ParseFloat(cenCor[1], 64)
+	lat2, err := strconv.ParseFloat(recCor[0], 64)
+	lon2, err := strconv.ParseFloat(recCor[1], 64)
+	if err != nil {
+		log.Fatalln("Error processing coordinates", err)
+	}
+	return lat1, lon1, lat2, lon2
+}
+
+func (c *dataInfo) checkforBuss(s string) string {
+	names := strings.Fields(s)
+	for _, name := range names {
+		if _, ok := c.DNM[tCase(name)]; ok {
+			return "Business Name"
+		}
+	}
+	return ""
+}
+
+func comb(cust *customer, p *dataInfo) string {
+	if _, ok := p.columns["address2"]; ok {
+		return fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
+	}
+	return fmt.Sprintf("%v %v", cust.Address1, cust.Zip)
 }
 
 func tCase(f string) string {
@@ -305,184 +338,6 @@ func process(param *dataInfo, wg *sync.WaitGroup) {
 	}
 }
 
-func outputCSV(cust []*customer) {
-	log.Println("Exporting Processed Output to File...")
-	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
-	checkErr(err)
-	defer file.Close()
-	writer := csv.NewWriter(file)
-	header := []string{
-		"Customer ID",
-		"FirstName",
-		"MI",
-		"LastName",
-		"Address1",
-		"City",
-		"State",
-		"Zip",
-		"Zip4",
-		"HPH",
-		"BPH",
-		"CPH",
-		"VIN",
-		"Year",
-		"Make",
-		"Model",
-		"DelDate",
-		"Date",
-		"Radius",
-		"DSF_WALK_SEQ",
-		"CRRT",
-		"KBB",
-		"DD_Year",
-		"DD_Month",
-		"D_Year",
-		"D_Month",
-	}
-	writer.Write(header)
-	writer.Flush()
-
-	for idx, x := range cust {
-		var r []string
-		r = append(r, fmt.Sprintf("%v%v", source, idx+100000))
-		r = append(r, x.Firstname)
-		r = append(r, x.MI)
-		r = append(r, x.Lastname)
-		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
-		r = append(r, x.City)
-		r = append(r, x.State)
-		r = append(r, x.Zip)
-		r = append(r, x.Zip4)
-		r = append(r, x.HPH)
-		r = append(r, x.BPH)
-		r = append(r, x.CPH)
-		r = append(r, x.VIN)
-		r = append(r, x.Year)
-		r = append(r, x.Make)
-		r = append(r, x.Model)
-		if !x.DelDate.IsZero() {
-			r = append(r, x.DelDate.Format(time.RFC3339))
-		} else {
-			r = append(r, "")
-		}
-		if !x.Date.IsZero() {
-			r = append(r, x.Date.Format(time.RFC3339))
-		} else {
-			r = append(r, "")
-		}
-		r = append(r, x.Radius)
-		r = append(r, x.DSFwalkseq)
-		r = append(r, x.CRRT)
-		r = append(r, x.KBB)
-		if !x.DelDate.IsZero() {
-			r = append(r, strconv.Itoa(x.DelDate.Year()))
-		} else {
-			r = append(r, "")
-		}
-		if !x.DelDate.IsZero() {
-			r = append(r, strconv.Itoa(int(x.DelDate.Month())))
-		} else {
-			r = append(r, "")
-		}
-		if !x.Date.IsZero() {
-			r = append(r, strconv.Itoa(x.Date.Year()))
-		} else {
-			r = append(r, "")
-		}
-		if !x.Date.IsZero() {
-			r = append(r, strconv.Itoa(int(x.Date.Month())))
-		} else {
-			r = append(r, "")
-		}
-		writer.Write(r)
-		writer.Flush()
-	}
-}
-
-func errStatusCSV(cust []*customer) {
-	log.Println("Exporting Dupes to File...")
-	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
-	checkErr(err)
-	defer file.Close()
-	writer := csv.NewWriter(file)
-	header := []string{
-		"Seq#",
-		"FirstName",
-		"LastName",
-		"Address",
-		"City",
-		"State",
-		"Zip",
-		"VIN",
-		"Status",
-	}
-	writer.Write(header)
-	writer.Flush()
-
-	for idx, x := range cust {
-		var r []string
-		r = append(r, fmt.Sprintf("%v", idx))
-		r = append(r, x.Firstname)
-		r = append(r, x.Lastname)
-		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
-		r = append(r, x.City)
-		r = append(r, x.State)
-		r = append(r, x.Zip)
-		r = append(r, x.VIN)
-		r = append(r, x.ErrStat)
-		writer.Write(r)
-		writer.Flush()
-	}
-}
-
-func phonesCSV(cust []*customer) {
-	log.Println("Exporting Phones to File...")
-	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
-	checkErr(err)
-	defer file.Close()
-	writer = csv.NewWriter(file)
-	header := []string{
-		"Ctr",
-		"First Name",
-		"Last Name",
-		"Address",
-		"City",
-		"State",
-		"Zip",
-		"Home Phone",
-	}
-	writer.Write(header)
-	writer.Flush()
-
-	for idx, x := range cust {
-		var r []string
-		if x.HPH != "" {
-			r = append(r, fmt.Sprintf("%v", idx))
-			r = append(r, x.Firstname)
-			r = append(r, x.Lastname)
-			r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
-			r = append(r, x.City)
-			r = append(r, x.State)
-			r = append(r, x.Zip)
-			r = append(r, x.HPH)
-			writer.Write(r)
-			writer.Flush()
-		}
-	}
-}
-
-func comb(cust *customer) string {
-	return fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
-}
-
-func genSeqNum() func() int {
-	i := 0
-	return func() int {
-		i++
-		return i
-	}
-}
-
 func addSep(n int64) string {
 	in := strconv.FormatInt(n, 10)
 	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
@@ -500,18 +355,6 @@ func addSep(n int64) string {
 			out[j] = ','
 		}
 	}
-}
-
-func checkforBuss(s string) string {
-	names := strings.Fields(s)
-	for _, name := range names {
-		for _, dnm := range doNotMail {
-			if tCase(name) == tCase(dnm) {
-				return "Business"
-			}
-		}
-	}
-	return ""
 }
 
 func hsin(theta float64) float64 {
@@ -532,16 +375,10 @@ func distance(lat1, lon1, lat2, lon2 float64) float64 {
 	return 2 * rad * math.Asin(math.Sqrt(h))
 }
 
-func (c *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, float64) {
-	recCor := c.coordinates[rZip]
-	cenCor := c.coordinates[cZip]
-	// convert Coordinates tin FLoat64
-	lat1, err := strconv.ParseFloat(cenCor[0], 64)
-	lon1, err := strconv.ParseFloat(cenCor[1], 64)
-	lat2, err := strconv.ParseFloat(recCor[0], 64)
-	lon2, err := strconv.ParseFloat(recCor[1], 64)
-	if err != nil {
-		log.Fatalln("Error processing coordinates", err)
+func genSeqNum() func() int {
+	i := 0
+	return func() int {
+		i++
+		return i
 	}
-	return lat1, lon1, lat2, lon2
 }
