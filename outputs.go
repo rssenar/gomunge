@@ -22,7 +22,7 @@ func outputCSV(cust []*customer) {
 		"FirstName",
 		"MI",
 		"LastName",
-		"Address1",
+		"Address",
 		"City",
 		"State",
 		"Zip",
@@ -54,7 +54,8 @@ func outputCSV(cust []*customer) {
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
 		r = append(r, x.Lastname)
-		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+		// r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+		r = append(r, x.combAddr(x))
 		r = append(r, x.City)
 		r = append(r, x.State)
 		r = append(r, x.Zip)

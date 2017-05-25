@@ -76,142 +76,142 @@ func newDataInfo() *dataInfo {
 	}
 }
 
-func (c *dataInfo) setColumns(rec []string) {
+func (d *dataInfo) setColumns(rec []string) {
 	for idx, value := range rec {
 		switch {
 		case regexp.MustCompile(`(?i)ful.+me`).MatchString(value):
-			c.columns["fullname"] = idx
+			d.columns["fullname"] = idx
 		case regexp.MustCompile(`(?i)fir.+me`).MatchString(value):
-			c.columns["firstname"] = idx
+			d.columns["firstname"] = idx
 		case regexp.MustCompile(`(?i)^mi$`).MatchString(value):
-			c.columns["mi"] = idx
+			d.columns["mi"] = idx
 		case regexp.MustCompile(`(?i)las.+me`).MatchString(value):
-			c.columns["lastname"] = idx
+			d.columns["lastname"] = idx
 		case regexp.MustCompile(`(?i)^address$`).MatchString(value):
-			c.columns["address1"] = idx
+			d.columns["address1"] = idx
 		case regexp.MustCompile(`(?i)addr.+1`).MatchString(value):
-			c.columns["address1"] = idx
+			d.columns["address1"] = idx
 		case regexp.MustCompile(`(?i)addr.+2`).MatchString(value):
-			c.columns["address2"] = idx
+			d.columns["address2"] = idx
 		case regexp.MustCompile(`(?i)^city$`).MatchString(value):
-			c.columns["city"] = idx
+			d.columns["city"] = idx
 		case regexp.MustCompile(`(?i)^state$`).MatchString(value):
-			c.columns["state"] = idx
+			d.columns["state"] = idx
 		case regexp.MustCompile(`(?i)^zip$`).MatchString(value):
-			c.columns["zip"] = idx
+			d.columns["zip"] = idx
 		case regexp.MustCompile(`(?i)^zip4$`).MatchString(value):
-			c.columns["zip4"] = idx
+			d.columns["zip4"] = idx
 		case regexp.MustCompile(`(?i)^4zip$`).MatchString(value):
-			c.columns["zip4"] = idx
+			d.columns["zip4"] = idx
 		case regexp.MustCompile(`(?i)^hph$`).MatchString(value):
-			c.columns["hph"] = idx
+			d.columns["hph"] = idx
 		case regexp.MustCompile(`(?i)^bph$`).MatchString(value):
-			c.columns["bph"] = idx
+			d.columns["bph"] = idx
 		case regexp.MustCompile(`(?i)^cph$`).MatchString(value):
-			c.columns["cph"] = idx
+			d.columns["cph"] = idx
 		case regexp.MustCompile(`(?i)^email$`).MatchString(value):
-			c.columns["email"] = idx
+			d.columns["email"] = idx
 		case regexp.MustCompile(`(?i)^vin$`).MatchString(value):
-			c.columns["vin"] = idx
+			d.columns["vin"] = idx
 		case regexp.MustCompile(`(?i)^year$`).MatchString(value):
-			c.columns["year"] = idx
+			d.columns["year"] = idx
 		case regexp.MustCompile(`(?i)^vyr$`).MatchString(value):
-			c.columns["year"] = idx
+			d.columns["year"] = idx
 		case regexp.MustCompile(`(?i)^make$`).MatchString(value):
-			c.columns["make"] = idx
+			d.columns["make"] = idx
 		case regexp.MustCompile(`(?i)^vmk$`).MatchString(value):
-			c.columns["make"] = idx
+			d.columns["make"] = idx
 		case regexp.MustCompile(`(?i)^model$`).MatchString(value):
-			c.columns["model"] = idx
+			d.columns["model"] = idx
 		case regexp.MustCompile(`(?i)^vmd$`).MatchString(value):
-			c.columns["model"] = idx
+			d.columns["model"] = idx
 		case regexp.MustCompile(`(?i)^deldate$`).MatchString(value):
-			c.columns["deldate"] = idx
+			d.columns["deldate"] = idx
 		case regexp.MustCompile(`(?i)^date$`).MatchString(value):
-			c.columns["date"] = idx
+			d.columns["date"] = idx
 		case regexp.MustCompile(`(?i)^DSF_WALK_SEQ$`).MatchString(value):
-			c.columns["dsfwalkseq"] = idx
+			d.columns["dsfwalkseq"] = idx
 		case regexp.MustCompile(`(?i)^Crrt$`).MatchString(value):
-			c.columns["crrt"] = idx
+			d.columns["crrt"] = idx
 		case regexp.MustCompile(`(?i)^KBB$`).MatchString(value):
-			c.columns["kbb"] = idx
+			d.columns["kbb"] = idx
 		}
 	}
 }
 
-func (c *dataInfo) process(record []string) *customer {
+func (d *dataInfo) process(record []string) *customer {
 	customer := &customer{}
-	for header := range c.columns {
+	for header := range d.columns {
 		switch header {
 		case "fullname":
-			name := names.Parse(record[c.columns[header]])
+			name := names.Parse(record[d.columns[header]])
 			customer.Firstname = tCase(name.FirstName)
 			customer.MI = tCase(name.MiddleName)
 			customer.Lastname = tCase(name.LastName)
 		case "firstname":
-			customer.Firstname = tCase(record[c.columns[header]])
+			customer.Firstname = tCase(record[d.columns[header]])
 		case "mi":
-			customer.MI = tCase(record[c.columns[header]])
+			customer.MI = tCase(record[d.columns[header]])
 		case "lastname":
-			customer.Lastname = tCase(record[c.columns[header]])
+			customer.Lastname = tCase(record[d.columns[header]])
 		case "address1":
-			customer.Address1 = tCase(record[c.columns[header]])
+			customer.Address1 = tCase(record[d.columns[header]])
 		case "address2":
-			customer.Address2 = tCase(record[c.columns[header]])
+			customer.Address2 = tCase(record[d.columns[header]])
 		case "city":
-			customer.City = tCase(record[c.columns[header]])
+			customer.City = tCase(record[d.columns[header]])
 		case "state":
-			customer.State = uCase(record[c.columns[header]])
+			customer.State = uCase(record[d.columns[header]])
 		case "zip":
-			if _, ok := c.columns["zip4"]; ok {
-				customer.Zip, _ = parseZip(record[c.columns[header]])
+			if _, ok := d.columns["zip4"]; ok {
+				customer.Zip, _ = customer.parseZip(record[d.columns[header]])
 			} else {
-				customer.Zip, customer.Zip4 = parseZip(record[c.columns[header]])
+				customer.Zip, customer.Zip4 = customer.parseZip(record[d.columns[header]])
 			}
 		case "zip4":
-			if _, ok := c.columns["zip4"]; ok {
-				customer.Zip4 = record[c.columns[header]]
+			if _, ok := d.columns["zip4"]; ok {
+				customer.Zip4 = record[d.columns[header]]
 			}
 		case "hph":
-			customer.HPH = parsePhone(record[c.columns[header]])
+			customer.HPH = customer.parsePhone(record[d.columns[header]])
 		case "bph":
-			customer.BPH = parsePhone(record[c.columns[header]])
+			customer.BPH = customer.parsePhone(record[d.columns[header]])
 		case "cph":
-			customer.CPH = parsePhone(record[c.columns[header]])
+			customer.CPH = customer.parsePhone(record[d.columns[header]])
 		case "email":
-			customer.Email = lCase(record[c.columns[header]])
+			customer.Email = lCase(record[d.columns[header]])
 		case "vin":
-			customer.VIN = uCase(record[c.columns[header]])
+			customer.VIN = uCase(record[d.columns[header]])
 		case "year":
-			if _, err := strconv.Atoi(record[c.columns[header]]); err == nil {
-				customer.Year = decodeYr(record[c.columns[header]])
+			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
+				customer.Year = decodeYr(record[d.columns[header]])
 			}
 		case "make":
-			customer.Make = tCase(record[c.columns[header]])
+			customer.Make = tCase(record[d.columns[header]])
 		case "model":
-			customer.Model = tCase(record[c.columns[header]])
+			customer.Model = tCase(record[d.columns[header]])
 		case "deldate":
-			customer.DelDate = parseDate(record[c.columns[header]])
+			customer.DelDate = customer.parseDate(record[d.columns[header]])
 		case "date":
-			customer.Date = parseDate(record[c.columns[header]])
+			customer.Date = customer.parseDate(record[d.columns[header]])
 		case "dsfwalkseq":
-			if _, err := strconv.Atoi(record[c.columns[header]]); err == nil {
-				customer.DSFwalkseq = record[c.columns[header]]
+			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
+				customer.DSFwalkseq = record[d.columns[header]]
 			}
 		case "crrt":
-			customer.CRRT = uCase(record[c.columns[header]])
+			customer.CRRT = uCase(record[d.columns[header]])
 		case "kbb":
-			if _, err := strconv.Atoi(record[c.columns[header]]); err == nil {
-				customer.KBB = record[c.columns[header]]
+			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
+				customer.KBB = record[d.columns[header]]
 			}
 		}
 	}
-	customer.ErrStat = c.checkforBuss(customer.Firstname)
-	customer.ErrStat = c.checkforBuss(customer.MI)
-	customer.ErrStat = c.checkforBuss(customer.Lastname)
+	customer.ErrStat = d.checkforBuss(customer.Firstname)
+	customer.ErrStat = d.checkforBuss(customer.MI)
+	customer.ErrStat = d.checkforBuss(customer.Lastname)
 
-	if _, ok := c.coordinates[customer.Zip]; ok {
-		clat1, clon2, rlat1, rlon2 := c.getLatLong(strconv.Itoa(c.config.CentZip), customer.Zip)
+	if _, ok := d.coordinates[customer.Zip]; ok {
+		clat1, clon2, rlat1, rlon2 := d.getLatLong(strconv.Itoa(d.config.CentZip), customer.Zip)
 		customer.Radius = fmt.Sprintf("%.2f", distance(clat1, clon2, rlat1, rlon2))
 	} else {
 		customer.ErrStat = "Invalid ZIP code"
@@ -219,9 +219,9 @@ func (c *dataInfo) process(record []string) *customer {
 	return customer
 }
 
-func (c *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, float64) {
-	recCor := c.coordinates[rZip]
-	cenCor := c.coordinates[cZip]
+func (d *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, float64) {
+	recCor := d.coordinates[rZip]
+	cenCor := d.coordinates[cZip]
 	// convert Coordinates tin FLoat64
 	lat1, err := strconv.ParseFloat(cenCor[0], 64)
 	lon1, err := strconv.ParseFloat(cenCor[1], 64)
@@ -233,36 +233,31 @@ func (c *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, flo
 	return lat1, lon1, lat2, lon2
 }
 
-func (c *dataInfo) checkforBuss(s string) string {
+func (d *dataInfo) checkforBuss(s string) string {
 	names := strings.Fields(s)
 	for _, name := range names {
-		if _, ok := c.DNM[tCase(name)]; ok {
-			return "Business Name"
+		if _, ok := d.DNM[tCase(name)]; ok {
+			return "Business"
 		}
 	}
 	return ""
 }
 
-func comb(cust *customer, p *dataInfo) string {
-	if _, ok := p.columns["address2"]; ok {
-		return fmt.Sprintf("%v %v %v", cust.Address1, cust.Address2, cust.Zip)
+func (c *customer) combDedupe() string {
+	if c.Address2 == "" {
+		return fmt.Sprintf("%v %v", c.Address1, c.Zip)
 	}
-	return fmt.Sprintf("%v %v", cust.Address1, cust.Zip)
+	return fmt.Sprintf("%v %v %v", c.Address1, c.Address2, c.Zip)
 }
 
-func tCase(f string) string {
-	return strings.TrimSpace(strings.Title(strings.ToLower(f)))
+func (c *customer) combAddr(cust *customer) string {
+	if c.Address2 == "" {
+		return fmt.Sprintf("%v", c.Address1)
+	}
+	return fmt.Sprintf("%v %v", c.Address1, c.Address2)
 }
 
-func uCase(f string) string {
-	return strings.TrimSpace(strings.ToUpper(f))
-}
-
-func lCase(f string) string {
-	return strings.TrimSpace(strings.ToLower(f))
-}
-
-func parseZip(zip string) (string, string) {
+func (c *customer) parseZip(zip string) (string, string) {
 	switch {
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9]$`).MatchString(zip):
 		return zip, ""
@@ -281,7 +276,7 @@ func parseZip(zip string) (string, string) {
 	return "", ""
 }
 
-func parseDate(d string) time.Time {
+func (c *customer) parseDate(d string) time.Time {
 	if d != "" {
 		formats := []string{"1/2/2006", "1-2-2006", "1/2/06", "1-2-06",
 			"2006/1/2", "2006-1-2"}
@@ -294,7 +289,7 @@ func parseDate(d string) time.Time {
 	return time.Time{}
 }
 
-func parsePhone(p string) string {
+func (c *customer) parsePhone(p string) string {
 	sep := []string{"-", ".", "*", "(", ")", " "}
 	for _, v := range sep {
 		p = strings.Replace(p, v, "", -1)
@@ -309,7 +304,7 @@ func parsePhone(p string) string {
 	}
 }
 
-func taskGenerator(param *dataInfo) {
+func (d *dataInfo) taskGenerator() {
 	log.Println("Ingesting Data...")
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
 	checkErr(err)
@@ -322,12 +317,12 @@ func taskGenerator(param *dataInfo) {
 			log.Fatalf("Error processing CSV file: %v \n", err)
 		}
 		if ctr == 0 {
-			param.setColumns(rec)
+			d.setColumns(rec)
 		} else {
-			param.tasks <- rec
+			d.tasks <- rec
 		}
 	}
-	close(param.tasks)
+	close(d.tasks)
 	log.Println("Data Ingest Complete...")
 }
 
@@ -335,25 +330,6 @@ func process(param *dataInfo, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for task := range param.tasks {
 		param.results <- param.process(task)
-	}
-}
-
-func addSep(n int64) string {
-	in := strconv.FormatInt(n, 10)
-	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
-	if in[0] == '-' {
-		in, out[0] = in[1:], '-'
-	}
-
-	for i, j, k := len(in)-1, len(out)-1, 0; ; i, j = i-1, j-1 {
-		out[j] = in[i]
-		if i == 0 {
-			return string(out)
-		}
-		if k++; k == 3 {
-			j, k = j-1, 0
-			out[j] = ','
-		}
 	}
 }
 
@@ -375,10 +351,40 @@ func distance(lat1, lon1, lat2, lon2 float64) float64 {
 	return 2 * rad * math.Asin(math.Sqrt(h))
 }
 
-func genSeqNum() func() int {
-	i := 0
-	return func() int {
-		i++
-		return i
-	}
+func tCase(f string) string {
+	return strings.TrimSpace(strings.Title(strings.ToLower(f)))
 }
+
+func uCase(f string) string {
+	return strings.TrimSpace(strings.ToUpper(f))
+}
+
+func lCase(f string) string {
+	return strings.TrimSpace(strings.ToLower(f))
+}
+
+// func genSeqNum() func() int {
+// 	i := 0
+// 	return func() int {
+// 		i++
+// 		return i
+// 	}
+// }
+
+// func addSep(n int64) string {
+// 	in := strconv.FormatInt(n, 10)
+// 	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
+// 	if in[0] == '-' {
+// 		in, out[0] = in[1:], '-'
+// 	}
+// 	for i, j, k := len(in)-1, len(out)-1, 0; ; i, j = i-1, j-1 {
+// 		out[j] = in[i]
+// 		if i == 0 {
+// 			return string(out)
+// 		}
+// 		if k++; k == 3 {
+// 			j, k = j-1, 0
+// 			out[j] = ','
+// 		}
+// 	}
+// }

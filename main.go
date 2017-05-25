@@ -22,7 +22,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// read CSV file from Stdin and send to the task channel
-	go taskGenerator(param)
+	go param.taskGenerator()
 
 	wg.Add(gophers)
 	log.Printf("Generating %v Goroutines...\n", gophers)
@@ -46,13 +46,13 @@ func main() {
 	counter := 0
 	for c := range param.results {
 		// Check for Duplicate Address on file
-		if cnt, ok := param.dupes[comb(c, param)]; ok {
+		if cnt, ok := param.dupes[c.combDedupe()]; ok {
 			c.ErrStat = fmt.Sprintf("Duplicate Address (%v)", cnt)
 		}
-		param.dupes[comb(c, param)]++
+		param.dupes[c.combDedupe()]++
 
 		// Check for Duplicate Address with Gen suppression file
-		if cnt, ok := param.GenSupp[comb(c, param)]; ok {
+		if cnt, ok := param.GenSupp[c.combDedupe()]; ok {
 			c.ErrStat = fmt.Sprintf("Suppression File Duplicate (%v)", cnt)
 		}
 
