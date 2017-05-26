@@ -166,20 +166,20 @@ func (d *dataInfo) processRecord(record []string) *customer {
 			customer.State = uCase(record[d.columns[header]])
 		case "zip":
 			if _, ok := d.columns["zip4"]; ok {
-				customer.Zip, _ = customer.parseZip(record[d.columns[header]])
+				customer.Zip, _ = parseZip(record[d.columns[header]])
 			} else {
-				customer.Zip, customer.Zip4 = customer.parseZip(record[d.columns[header]])
+				customer.Zip, customer.Zip4 = parseZip(record[d.columns[header]])
 			}
 		case "zip4":
 			if _, ok := d.columns["zip4"]; ok {
 				customer.Zip4 = record[d.columns[header]]
 			}
 		case "hph":
-			customer.HPH = customer.parsePhone(record[d.columns[header]])
+			customer.HPH = formatPhone(record[d.columns[header]])
 		case "bph":
-			customer.BPH = customer.parsePhone(record[d.columns[header]])
+			customer.BPH = formatPhone(record[d.columns[header]])
 		case "cph":
-			customer.CPH = customer.parsePhone(record[d.columns[header]])
+			customer.CPH = formatPhone(record[d.columns[header]])
 		case "email":
 			customer.Email = lCase(record[d.columns[header]])
 		case "vin":
@@ -193,9 +193,9 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		case "model":
 			customer.Model = tCase(record[d.columns[header]])
 		case "deldate":
-			customer.DelDate = customer.parseDate(record[d.columns[header]])
+			customer.DelDate = parseDate(record[d.columns[header]])
 		case "date":
-			customer.Date = customer.parseDate(record[d.columns[header]])
+			customer.Date = parseDate(record[d.columns[header]])
 		case "dsfwalkseq":
 			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
 				customer.DSFwalkseq = record[d.columns[header]]
@@ -254,67 +254,6 @@ func (d *dataInfo) checkforBuss(s string) string {
 	return ""
 }
 
-func (c *customer) combDedupe() string {
-	if c.Address2 == "" {
-		return fmt.Sprintf("%v %v", c.Address1, c.Zip)
-	}
-	return fmt.Sprintf("%v %v %v", c.Address1, c.Address2, c.Zip)
-}
-
-func (c *customer) combAddr(cust *customer) string {
-	if c.Address2 == "" {
-		return fmt.Sprintf("%v", c.Address1)
-	}
-	return fmt.Sprintf("%v %v", c.Address1, c.Address2)
-}
-
-func (c *customer) parseZip(zip string) (string, string) {
-	switch {
-	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return zip, ""
-	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		if zip[:1] == "0" {
-			zip = zip[1:]
-			return zip, ""
-		}
-		return zip, ""
-	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return zip[:5], zip[5:]
-	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		zip := strings.Split(zip, "-")
-		return zip[0], zip[1]
-	}
-	return "", ""
-}
-
-func (c *customer) parseDate(d string) time.Time {
-	if d != "" {
-		formats := []string{"1/2/2006", "1-2-2006", "1/2/06", "1-2-06",
-			"2006/1/2", "2006-1-2"}
-		for _, f := range formats {
-			if date, err := time.Parse(f, d); err == nil {
-				return date
-			}
-		}
-	}
-	return time.Time{}
-}
-
-func (c *customer) parsePhone(p string) string {
-	sep := []string{"-", ".", "*", "(", ")", " "}
-	for _, v := range sep {
-		p = strings.Replace(p, v, "", -1)
-	}
-	switch len(p) {
-	case 10:
-		return fmt.Sprintf("(%v) %v-%v", p[0:3], p[3:6], p[6:10])
-	case 7:
-		return fmt.Sprintf("%v-%v", p[0:3], p[3:7])
-	default:
-		return ""
-	}
-}
-
 func (d *dataInfo) taskGenerator() {
 	log.Println("Ingesting Data...")
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
@@ -341,6 +280,70 @@ func (d *dataInfo) processTasks() {
 	defer d.wg.Done()
 	for task := range d.tasks {
 		d.results <- d.processRecord(task)
+	}
+}
+
+func (c *customer) combDedupe() string {
+	if c.Address2 == "" {
+		return fmt.Sprintf("%v %v", c.Address1, c.Zip)
+	}
+	return fmt.Sprintf("%v %v %v", c.Address1, c.Address2, c.Zip)
+}
+
+func (c *customer) combAddr(cust *customer) string {
+	if c.Address2 == "" {
+		return fmt.Sprintf("%v", c.Address1)
+	}
+	return fmt.Sprintf("%v %v", c.Address1, c.Address2)
+}
+
+func parseZip(zip string) (string, string) {
+	switch {
+	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9]$`).MatchString(zip):
+		return trimZeros(zip), ""
+	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
+		return trimZeros(zip), ""
+	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
+		return trimZeros(zip[:5]), zip[5:]
+	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$`).MatchString(zip):
+		zip := strings.Split(zip, "-")
+		return trimZeros(zip[0]), zip[1]
+	}
+	return "", ""
+}
+
+func trimZeros(s string) string {
+	for i := 0; i < 5; i++ {
+		s = strings.TrimPrefix(s, "0")
+	}
+	return s
+}
+
+func parseDate(d string) time.Time {
+	if d != "" {
+		formats := []string{"1/2/2006", "1-2-2006", "1/2/06", "1-2-06",
+			"2006/1/2", "2006-1-2"}
+		for _, f := range formats {
+			if date, err := time.Parse(f, d); err == nil {
+				return date
+			}
+		}
+	}
+	return time.Time{}
+}
+
+func formatPhone(p string) string {
+	sep := []string{"-", ".", "*", "(", ")", " "}
+	for _, v := range sep {
+		p = strings.Replace(p, v, "", -1)
+	}
+	switch len(p) {
+	case 10:
+		return fmt.Sprintf("(%v) %v-%v", p[0:3], p[3:6], p[6:10])
+	case 7:
+		return fmt.Sprintf("%v-%v", p[0:3], p[3:7])
+	default:
+		return ""
 	}
 }
 
