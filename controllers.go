@@ -17,31 +17,32 @@ import (
 )
 
 type customer struct {
-	ID         int       `json:"id"`
-	Firstname  string    `json:"first_name"`
-	MI         string    `json:"middle_name"`
-	Lastname   string    `json:"last_name"`
-	Address1   string    `json:"address_1"`
-	Address2   string    `json:"address_2"`
-	City       string    `json:"city"`
-	State      string    `json:"state"`
-	Zip        string    `json:"zip"`
-	Zip4       string    `json:"zip_4"`
-	HPH        string    `json:"home_phone"`
-	BPH        string    `json:"business_phone"`
-	CPH        string    `json:"mobile_phone"`
-	Email      string    `json:"email"`
-	VIN        string    `json:"VIN"`
-	Year       string    `json:"year"`
-	Make       string    `json:"make"`
-	Model      string    `json:"model"`
-	DelDate    time.Time `json:"delivery_date"`
-	Date       time.Time `json:"date"`
-	Radius     string    `json:"radius"`
-	DSFwalkseq string    `json:"DSF_Walk_Sequence"`
-	CRRT       string    `json:"CRRT"`
-	KBB        string    `json:"KBB"`
-	ErrStat    string    `json:"Status"`
+	ID          int       `json:"id"`
+	Firstname   string    `json:"first_name"`
+	MI          string    `json:"middle_name"`
+	Lastname    string    `json:"last_name"`
+	Address1    string    `json:"address_1"`
+	Address2    string    `json:"address_2"`
+	City        string    `json:"city"`
+	State       string    `json:"state"`
+	Zip         string    `json:"zip"`
+	Zip4        string    `json:"zip_4"`
+	HPH         string    `json:"home_phone"`
+	BPH         string    `json:"business_phone"`
+	CPH         string    `json:"mobile_phone"`
+	Email       string    `json:"email"`
+	VIN         string    `json:"VIN"`
+	Year        string    `json:"year"`
+	Make        string    `json:"make"`
+	Model       string    `json:"model"`
+	DelDate     time.Time `json:"delivery_date"`
+	Date        time.Time `json:"date"`
+	Radius      string    `json:"radius"`
+	Coordinates string    `json:"coordinates"`
+	DSFwalkseq  string    `json:"DSF_Walk_Sequence"`
+	CRRT        string    `json:"CRRT"`
+	KBB         string    `json:"KBB"`
+	ErrStat     string    `json:"Status"`
 }
 
 type dataInfo struct {
@@ -57,6 +58,7 @@ type dataInfo struct {
 	GenSupp     map[string]int
 	tasks       chan []string
 	results     chan *customer
+	wg          sync.WaitGroup
 }
 
 func newDataInfo() *dataInfo {
@@ -139,7 +141,7 @@ func (d *dataInfo) setColumns(rec []string) {
 	}
 }
 
-func (d *dataInfo) process(record []string) *customer {
+func (d *dataInfo) processRecord(record []string) *customer {
 	customer := &customer{}
 	for header := range d.columns {
 		switch header {
@@ -210,7 +212,16 @@ func (d *dataInfo) process(record []string) *customer {
 	customer.ErrStat = d.checkforBuss(customer.MI)
 	customer.ErrStat = d.checkforBuss(customer.Lastname)
 
+	if customer.Firstname == "" {
+		customer.ErrStat = "Missing FirstName"
+	}
+
+	if customer.Lastname == "" {
+		customer.ErrStat = "Missing LastName"
+	}
+
 	if _, ok := d.coordinates[customer.Zip]; ok {
+		customer.Coordinates = strings.Join(d.coordinates[customer.Zip], ", ")
 		clat1, clon2, rlat1, rlon2 := d.getLatLong(strconv.Itoa(d.config.CentZip), customer.Zip)
 		customer.Radius = fmt.Sprintf("%.2f", distance(clat1, clon2, rlat1, rlon2))
 	} else {
@@ -326,10 +337,10 @@ func (d *dataInfo) taskGenerator() {
 	log.Println("Data Ingest Complete...")
 }
 
-func process(param *dataInfo, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for task := range param.tasks {
-		param.results <- param.process(task)
+func (d *dataInfo) processTasks() {
+	defer d.wg.Done()
+	for task := range d.tasks {
+		d.results <- d.processRecord(task)
 	}
 }
 

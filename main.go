@@ -4,36 +4,35 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"sync"
 	"time"
 )
 
 func main() {
 	log.Println("Begin...")
 	timer := time.Now()
-	// Initialize data paramters
-	param := newDataInfo()
+	// Initialize data pters
+	p := newDataInfo()
 
 	// Validate Central Zip code
-	if _, ok := param.coordinates[strconv.Itoa(param.config.CentZip)]; !ok {
+	if _, ok := p.coordinates[strconv.Itoa(p.config.CentZip)]; !ok {
 		log.Fatalln("Invalid central ZIP code")
 	}
 
-	var wg sync.WaitGroup
+	// var wg sync.WaitGroup
 
 	// read CSV file from Stdin and send to the task channel
-	go param.taskGenerator()
+	go p.taskGenerator()
 
-	wg.Add(gophers)
+	p.wg.Add(gophers)
 	log.Printf("Generating %v Goroutines...\n", gophers)
 	for i := 0; i < gophers; i++ {
-		go process(param, &wg)
+		go p.processTasks()
 	}
 
 	// wait for goroutines to finish
 	go func() {
-		wg.Wait()
-		close(param.results)
+		p.wg.Wait()
+		close(p.results)
 		log.Println("Goroutines Terminated...")
 	}()
 
@@ -44,25 +43,25 @@ func main() {
 	var phonesRecs []*customer
 
 	counter := 0
-	for c := range param.results {
+	for c := range p.results {
 		// Check for Duplicate Address on file
-		if cnt, ok := param.dupes[c.combDedupe()]; ok {
+		if cnt, ok := p.dupes[c.combDedupe()]; ok {
 			c.ErrStat = fmt.Sprintf("Duplicate Address (%v)", cnt)
 		}
-		param.dupes[c.combDedupe()]++
+		p.dupes[c.combDedupe()]++
 
 		// Check for Duplicate Address with Gen suppression file
-		if cnt, ok := param.GenSupp[c.combDedupe()]; ok {
+		if cnt, ok := p.GenSupp[c.combDedupe()]; ok {
 			c.ErrStat = fmt.Sprintf("Suppression File Duplicate (%v)", cnt)
 		}
 
 		// Check for Duplicate VIN numbers & update ErrStat struct info
 		if c.VIN != "" {
-			if cnt, ok := param.VIN[c.VIN]; ok {
+			if cnt, ok := p.VIN[c.VIN]; ok {
 				c.ErrStat = fmt.Sprintf("Duplicate VIN (%v)", cnt)
 			}
 		}
-		param.VIN[c.VIN]++
+		p.VIN[c.VIN]++
 
 		// Append record to corresponding array
 		switch {

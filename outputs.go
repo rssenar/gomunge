@@ -37,6 +37,7 @@ func outputCSV(cust []*customer) {
 		"DelDate",
 		"Date",
 		"Radius",
+		"Coordinates",
 		"DSF_WALK_SEQ",
 		"CRRT",
 		"KBB",
@@ -78,6 +79,7 @@ func outputCSV(cust []*customer) {
 			r = append(r, "")
 		}
 		r = append(r, x.Radius)
+		r = append(r, x.Coordinates)
 		r = append(r, x.DSFwalkseq)
 		r = append(r, x.CRRT)
 		r = append(r, x.KBB)
