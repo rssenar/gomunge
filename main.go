@@ -78,11 +78,14 @@ func main() {
 	if len(outputRecs) != 0 {
 		outputCSV(outputRecs) // Main output
 	}
+
 	if len(phonesRecs) != 0 {
 		phonesCSV(phonesRecs) // output available phones
 	}
+
 	if len(ErrRecs) != 0 {
 		errStatusCSV(ErrRecs) // output dupes if available
 	}
+
 	log.Printf("Completed! processed %v records in %v\n", counter, time.Since(timer))
 }

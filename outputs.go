@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var writer *csv.Writer
+// var writer *csv.Writer
 
 func outputCSV(cust []*customer) {
 	log.Println("Exporting Processed Output to File...")
@@ -55,7 +55,6 @@ func outputCSV(cust []*customer) {
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
 		r = append(r, x.Lastname)
-		// r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
 		r = append(r, x.combAddr(x))
 		r = append(r, x.City)
 		r = append(r, x.State)
@@ -149,7 +148,7 @@ func phonesCSV(cust []*customer) {
 	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
 	checkErr(err)
 	defer file.Close()
-	writer = csv.NewWriter(file)
+	writer := csv.NewWriter(file)
 	header := []string{
 		"Ctr",
 		"First Name",
