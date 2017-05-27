@@ -221,7 +221,13 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		clat1, clon2, rlat1, rlon2 := d.getLatLong(strconv.Itoa(d.config.CentZip), customer.Zip)
 		customer.Radius = fmt.Sprintf("%.2f", distance(clat1, clon2, rlat1, rlon2))
 	} else {
-		customer.ErrStat = "Err: Invalid ZIP"
+		customer.ErrStat = "Err: Invalid ZIP Code"
+	}
+
+	if rad, err := strconv.ParseFloat(customer.Radius, 64); err == nil {
+		if rad > float64(d.config.MaxRadius) {
+			customer.ErrStat = "Err: Max Radius Exceeded"
+		}
 	}
 	return customer
 }
