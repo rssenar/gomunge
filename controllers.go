@@ -18,6 +18,7 @@ import (
 
 type customer struct {
 	ID          int       `json:"id"`
+	Fullname    string    `json:"full_name"`
 	Firstname   string    `json:"first_name"`
 	MI          string    `json:"middle_name"`
 	Lastname    string    `json:"last_name"`
@@ -146,10 +147,7 @@ func (d *dataInfo) processRecord(record []string) *customer {
 	for header := range d.columns {
 		switch header {
 		case "fullname":
-			name := names.Parse(record[d.columns[header]])
-			customer.Firstname = tCase(name.FirstName)
-			customer.MI = tCase(name.MiddleName)
-			customer.Lastname = tCase(name.LastName)
+			customer.Fullname = tCase(record[d.columns[header]])
 		case "firstname":
 			customer.Firstname = tCase(record[d.columns[header]])
 		case "mi":
@@ -165,15 +163,9 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		case "state":
 			customer.State = uCase(record[d.columns[header]])
 		case "zip":
-			if _, ok := d.columns["zip4"]; ok {
-				customer.Zip, _ = parseZip(record[d.columns[header]])
-			} else {
-				customer.Zip, customer.Zip4 = parseZip(record[d.columns[header]])
-			}
+			customer.Zip = record[d.columns[header]]
 		case "zip4":
-			if _, ok := d.columns["zip4"]; ok {
-				customer.Zip4 = record[d.columns[header]]
-			}
+			customer.Zip4 = record[d.columns[header]]
 		case "hph":
 			customer.HPH = formatPhone(record[d.columns[header]])
 		case "bph":
@@ -185,9 +177,7 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		case "vin":
 			customer.VIN = uCase(record[d.columns[header]])
 		case "year":
-			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
-				customer.Year = decodeYr(record[d.columns[header]])
-			}
+			customer.Year = decodeYr(trimZeros(stripSep(record[d.columns[header]])))
 		case "make":
 			customer.Make = tCase(record[d.columns[header]])
 		case "model":
@@ -197,27 +187,33 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		case "date":
 			customer.Date = parseDate(record[d.columns[header]])
 		case "dsfwalkseq":
-			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
-				customer.DSFwalkseq = record[d.columns[header]]
-			}
+			customer.DSFwalkseq = stripSep(record[d.columns[header]])
 		case "crrt":
 			customer.CRRT = uCase(record[d.columns[header]])
 		case "kbb":
-			if _, err := strconv.Atoi(record[d.columns[header]]); err == nil {
-				customer.KBB = record[d.columns[header]]
-			}
+			customer.KBB = stripSep(record[d.columns[header]])
 		}
 	}
+
+	if customer.Firstname == "" && customer.Lastname == "" {
+		name := names.Parse(customer.Fullname)
+		customer.Firstname = tCase(name.FirstName)
+		customer.MI = tCase(name.MiddleName)
+		customer.Lastname = tCase(name.LastName)
+	}
+
+	zip, zip4 := parseZip(customer.Zip)
+	customer.Zip = zip
+	if zip4 != "" {
+		customer.Zip4 = zip4
+	}
+
 	customer.ErrStat = d.checkforBuss(customer.Firstname)
 	customer.ErrStat = d.checkforBuss(customer.MI)
 	customer.ErrStat = d.checkforBuss(customer.Lastname)
 
-	if customer.Firstname == "" {
-		customer.ErrStat = "Err: Missing FirstName"
-	}
-
-	if customer.Lastname == "" {
-		customer.ErrStat = "Err: Missing LastName"
+	if customer.Firstname == "" || customer.Lastname == "" {
+		customer.ErrStat = "Err: Missing First/Last Name"
 	}
 
 	if _, ok := d.coordinates[customer.Zip]; ok {
@@ -300,21 +296,18 @@ func (c *customer) combAddr(cust *customer) string {
 }
 
 func parseZip(zip string) (string, string) {
-	zip = trimZeros(zip)
 	switch {
-	case regexp.MustCompile(`^[0-9][0-9][0-9]$`).MatchString(zip):
-		return zip, ""
-	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return zip, ""
-	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return zip, ""
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return zip[:5], zip[5:]
+		return trimZeros(zip[:5]), trimZeros(zip[5:])
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		zip := strings.Split(zip, "-")
-		return zip[0], zip[1]
+		zsplit := strings.Split(zip, "-")
+		return trimZeros(zsplit[0]), trimZeros(zsplit[1])
+	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9]$`).MatchString(zip):
+		zsplit := strings.Split(zip, " ")
+		return trimZeros(zsplit[0]), trimZeros(zsplit[1])
+	default:
+		return zip, ""
 	}
-	return "", ""
 }
 
 func trimZeros(s string) string {
@@ -337,11 +330,16 @@ func parseDate(d string) time.Time {
 	return time.Time{}
 }
 
-func formatPhone(p string) string {
-	sep := []string{"-", ".", "*", "(", ")", " "}
+func stripSep(p string) string {
+	sep := []string{"'", "#", "%", "$", "-", ".", "*", "(", ")", ":", ";", "{", "}", "|", " "}
 	for _, v := range sep {
 		p = strings.Replace(p, v, "", -1)
 	}
+	return p
+}
+
+func formatPhone(p string) string {
+	p = stripSep(p)
 	switch len(p) {
 	case 10:
 		return fmt.Sprintf("(%v) %v-%v", p[0:3], p[3:6], p[6:10])

@@ -123,7 +123,7 @@ func (d *dataInfo) outputCSV(cust []*customer) {
 
 func (d *dataInfo) errStatusCSV(cust []*customer) {
 	log.Println("Exporting Dupes to File...")
-	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
+	file, err := os.Create(fmt.Sprintf("./%v_ERR.csv", fileName))
 	if err != nil {
 		log.Fatalln(err)
 	}
