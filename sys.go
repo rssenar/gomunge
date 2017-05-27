@@ -1,21 +1,8 @@
 package main
 
-import (
-	"log"
-	"os"
-)
-
-// Set # of workers to initialize
-const gophers = 100
-const source = "D"
+import "os"
 
 var fileName = os.Args[1][:len(os.Args[1])-4]
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
 
 func decodeYr(y string) string {
 	yrDecDict := map[string]string{

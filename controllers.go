@@ -213,11 +213,11 @@ func (d *dataInfo) processRecord(record []string) *customer {
 	customer.ErrStat = d.checkforBuss(customer.Lastname)
 
 	if customer.Firstname == "" {
-		customer.ErrStat = "Missing FirstName"
+		customer.ErrStat = "Err: Missing FirstName"
 	}
 
 	if customer.Lastname == "" {
-		customer.ErrStat = "Missing LastName"
+		customer.ErrStat = "Err: Missing LastName"
 	}
 
 	if _, ok := d.coordinates[customer.Zip]; ok {
@@ -225,7 +225,7 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		clat1, clon2, rlat1, rlon2 := d.getLatLong(strconv.Itoa(d.config.CentZip), customer.Zip)
 		customer.Radius = fmt.Sprintf("%.2f", distance(clat1, clon2, rlat1, rlon2))
 	} else {
-		customer.ErrStat = "Invalid ZIP code"
+		customer.ErrStat = "Err: Invalid ZIP"
 	}
 	return customer
 }
@@ -248,7 +248,7 @@ func (d *dataInfo) checkforBuss(s string) string {
 	names := strings.Fields(s)
 	for _, name := range names {
 		if _, ok := d.DNM[tCase(name)]; ok {
-			return "Business"
+			return "Err: Business Name"
 		}
 	}
 	return ""
@@ -257,7 +257,9 @@ func (d *dataInfo) checkforBuss(s string) string {
 func (d *dataInfo) taskGenerator() {
 	log.Println("Ingesting Data...")
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
-	checkErr(err)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	reader := csv.NewReader(file)
 	for ctr := 0; ; ctr++ {
 		rec, err := reader.Read()
@@ -298,22 +300,25 @@ func (c *customer) combAddr(cust *customer) string {
 }
 
 func parseZip(zip string) (string, string) {
+	zip = trimZeros(zip)
 	switch {
+	case regexp.MustCompile(`^[0-9][0-9][0-9]$`).MatchString(zip):
+		return zip, ""
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return trimZeros(zip), ""
+		return zip, ""
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return trimZeros(zip), ""
+		return zip, ""
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$`).MatchString(zip):
-		return trimZeros(zip[:5]), zip[5:]
+		return zip[:5], zip[5:]
 	case regexp.MustCompile(`^[0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$`).MatchString(zip):
 		zip := strings.Split(zip, "-")
-		return trimZeros(zip[0]), zip[1]
+		return zip[0], zip[1]
 	}
 	return "", ""
 }
 
 func trimZeros(s string) string {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 4; i++ {
 		s = strings.TrimPrefix(s, "0")
 	}
 	return s
@@ -322,7 +327,7 @@ func trimZeros(s string) string {
 func parseDate(d string) time.Time {
 	if d != "" {
 		formats := []string{"1/2/2006", "1-2-2006", "1/2/06", "1-2-06",
-			"2006/1/2", "2006-1-2"}
+			"2006/1/2", "2006-1-2", time.RFC3339}
 		for _, f := range formats {
 			if date, err := time.Parse(f, d); err == nil {
 				return date

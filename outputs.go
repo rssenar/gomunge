@@ -9,12 +9,26 @@ import (
 	"time"
 )
 
-// var writer *csv.Writer
+func (d *dataInfo) custID(id int) string {
+	var i int
+	switch {
+	case d.config.Source == "D":
+		i = id + 10000
+	case d.config.Source == "P":
+		i = id + 50000
+	}
+	if i > 99999 {
+		log.Fatalln("WARNING! CustID is > 99999")
+	}
+	return strconv.Itoa(i)
+}
 
-func outputCSV(cust []*customer) {
+func (d *dataInfo) outputCSV(cust []*customer) {
 	log.Println("Exporting Processed Output to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
-	checkErr(err)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
@@ -51,7 +65,7 @@ func outputCSV(cust []*customer) {
 
 	for idx, x := range cust {
 		var r []string
-		r = append(r, fmt.Sprintf("%v%v", source, idx+10000))
+		r = append(r, d.custID(idx))
 		r = append(r, x.Firstname)
 		r = append(r, x.MI)
 		r = append(r, x.Lastname)
@@ -107,10 +121,12 @@ func outputCSV(cust []*customer) {
 	}
 }
 
-func errStatusCSV(cust []*customer) {
+func (d *dataInfo) errStatusCSV(cust []*customer) {
 	log.Println("Exporting Dupes to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_DUPES.csv", fileName))
-	checkErr(err)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
@@ -143,10 +159,12 @@ func errStatusCSV(cust []*customer) {
 	}
 }
 
-func phonesCSV(cust []*customer) {
+func (d *dataInfo) phonesCSV(cust []*customer) {
 	log.Println("Exporting Phones to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
-	checkErr(err)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{

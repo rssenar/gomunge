@@ -23,9 +23,9 @@ func main() {
 	// read CSV file from Stdin and send to the task channel
 	go p.taskGenerator()
 
-	p.wg.Add(gophers)
-	log.Printf("Generating %v Goroutines...\n", gophers)
-	for i := 0; i < gophers; i++ {
+	p.wg.Add(p.config.Gorutines)
+	log.Printf("Generating %v Goroutines...\n", p.config.Gorutines)
+	for i := 0; i < p.config.Gorutines; i++ {
 		go p.processTasks()
 	}
 
@@ -46,19 +46,19 @@ func main() {
 	for c := range p.results {
 		// Check for Duplicate Address on file
 		if cnt, ok := p.dupes[c.combDedupe()]; ok {
-			c.ErrStat = fmt.Sprintf("Duplicate Address (%v)", cnt)
+			c.ErrStat = fmt.Sprintf("Err: Duplicate Address (%v)", cnt)
 		}
 		p.dupes[c.combDedupe()]++
 
 		// Check for Duplicate Address with Gen suppression file
 		if cnt, ok := p.GenSupp[c.combDedupe()]; ok {
-			c.ErrStat = fmt.Sprintf("Suppression File Duplicate (%v)", cnt)
+			c.ErrStat = fmt.Sprintf("Err: Suppression File Duplicate (%v)", cnt)
 		}
 
 		// Check for Duplicate VIN numbers & update ErrStat struct info
 		if c.VIN != "" {
 			if cnt, ok := p.VIN[c.VIN]; ok {
-				c.ErrStat = fmt.Sprintf("Duplicate VIN (%v)", cnt)
+				c.ErrStat = fmt.Sprintf("Err: Duplicate VIN (%v)", cnt)
 			}
 		}
 		p.VIN[c.VIN]++
@@ -76,15 +76,15 @@ func main() {
 
 	// Generate output files if available
 	if len(outputRecs) != 0 {
-		outputCSV(outputRecs) // Main output
+		p.outputCSV(outputRecs) // Main output
 	}
 
 	if len(phonesRecs) != 0 {
-		phonesCSV(phonesRecs) // output available phones
+		p.phonesCSV(phonesRecs) // output available phones
 	}
 
 	if len(ErrRecs) != 0 {
-		errStatusCSV(ErrRecs) // output dupes if available
+		p.errStatusCSV(ErrRecs) // output dupes if available
 	}
 
 	log.Printf("Completed! processed %v records in %v\n", counter, time.Since(timer))
