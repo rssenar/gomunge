@@ -230,6 +230,48 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		}
 	}
 
+	if yr, err := strconv.Atoi(customer.Year); err == nil {
+		if yr > d.config.MaxVehYear {
+			customer.ErrStat = "Err: Max Year Exceeded"
+		}
+	}
+
+	if yr, err := strconv.Atoi(customer.Year); err == nil {
+		if yr < d.config.MinVehYear {
+			customer.ErrStat = "Err: Min Year Exceeded"
+		}
+	}
+
+	if d.config.ExcludeBlankYear {
+		if customer.Year == "" {
+			customer.ErrStat = "Err: Blank Year"
+		}
+	}
+
+	if d.config.ExcludeBlankMake {
+		if customer.Make == "" {
+			customer.ErrStat = "Err: Blank Make"
+		}
+	}
+
+	if d.config.ExcludeBlankModel {
+		if customer.Model == "" {
+			customer.ErrStat = "Err: Blank Model"
+		}
+	}
+
+	if !customer.DelDate.IsZero() {
+		if customer.DelDate.Year() > d.config.MaxYearDelDate {
+			customer.ErrStat = "Err: Max DelDate Exceeded"
+		}
+	}
+
+	if !customer.DelDate.IsZero() {
+		if customer.DelDate.Year() < d.config.MinYearDelDate {
+			customer.ErrStat = "Err: Min DelDate Exceeded"
+		}
+	}
+
 	return customer
 }
 

@@ -138,6 +138,9 @@ func (d *dataInfo) errStatusCSV(cust []*customer) {
 		"State",
 		"Zip",
 		"VIN",
+		"Year",
+		"Make",
+		"Model",
 		"Status",
 	}
 	writer.Write(header)
@@ -148,11 +151,14 @@ func (d *dataInfo) errStatusCSV(cust []*customer) {
 		r = append(r, fmt.Sprintf("%v", idx))
 		r = append(r, x.Firstname)
 		r = append(r, x.Lastname)
-		r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))
+		r = append(r, x.combAddr(x))
 		r = append(r, x.City)
 		r = append(r, x.State)
 		r = append(r, x.Zip)
 		r = append(r, x.VIN)
+		r = append(r, x.Year)
+		r = append(r, x.Make)
+		r = append(r, x.Model)
 		r = append(r, x.ErrStat)
 		writer.Write(r)
 		writer.Flush()

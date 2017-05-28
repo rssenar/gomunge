@@ -20,17 +20,20 @@ var (
 )
 
 type initConfig struct {
-	CentZip         int    `json:"Central Zip"`
-	MaxRadius       int    `json:"Max Radius"`
-	MaxVehYear      int    `json:"Max Vehicle Year"`
-	MinVehYear      int    `json:"Min Vehicle Year"`
-	MaxYearDelDate  int    `json:"Max Year DelDate"`
-	MinYearDelDate  int    `json:"Min Year DelDate"`
-	Vendor          string `json:"Vendor"`
-	Source          string `json:"Source"`
-	DelBlankDATE    bool   `json:"Remove Blank Date"`
-	DelBlankDELDATE bool   `json:"Remove Blank DelDate"`
-	Gorutines       int    `json:"Gorutines"`
+	Source              string `json:"Source"`
+	CentZip             int    `json:"Central Zip"`
+	MaxRadius           int    `json:"Max Radius"`
+	MaxVehYear          int    `json:"Max Vehicle Year"`
+	MinVehYear          int    `json:"Min Vehicle Year"`
+	MaxYearDelDate      int    `json:"Max Year DelDate"`
+	MinYearDelDate      int    `json:"Min Year DelDate"`
+	Vendor              string `json:"Vendor"`
+	ExcludeBlankDELDATE bool   `json:"Exclude Blank DelDate"`
+	ExcludeBlankDATE    bool   `json:"Exclude Blank Date"`
+	ExcludeBlankYear    bool   `json:"Exclude Blank Year"`
+	ExcludeBlankMake    bool   `json:"Exclude Blank Make"`
+	ExcludeBlankModel   bool   `json:"Exclude Blank Model"`
+	Gorutines           int    `json:"Gorutines"`
 }
 
 func loadConfig() *initConfig {
