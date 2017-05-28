@@ -202,18 +202,18 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		customer.Lastname = tCase(name.LastName)
 	}
 
-	zip, zip4 := parseZip(customer.Zip)
-	customer.Zip = zip
-	if zip4 != "" {
-		customer.Zip4 = zip4
+	if customer.Firstname == "" || customer.Lastname == "" {
+		customer.ErrStat = "Err: Missing First/Last Name"
 	}
 
 	customer.ErrStat = d.checkforBuss(customer.Firstname)
 	customer.ErrStat = d.checkforBuss(customer.MI)
 	customer.ErrStat = d.checkforBuss(customer.Lastname)
 
-	if customer.Firstname == "" || customer.Lastname == "" {
-		customer.ErrStat = "Err: Missing First/Last Name"
+	zip, zip4 := parseZip(customer.Zip)
+	customer.Zip = zip
+	if zip4 != "" {
+		customer.Zip4 = zip4
 	}
 
 	if _, ok := d.coordinates[customer.Zip]; ok {
@@ -229,6 +229,7 @@ func (d *dataInfo) processRecord(record []string) *customer {
 			customer.ErrStat = "Err: Max Radius Exceeded"
 		}
 	}
+
 	return customer
 }
 
@@ -250,7 +251,7 @@ func (d *dataInfo) checkforBuss(s string) string {
 	names := strings.Fields(s)
 	for _, name := range names {
 		if _, ok := d.DNM[tCase(name)]; ok {
-			return "Err: Business Name"
+			return "Err: Business"
 		}
 	}
 	return ""
@@ -317,7 +318,7 @@ func parseZip(zip string) (string, string) {
 }
 
 func trimZeros(s string) string {
-	for i := 0; i < 4; i++ {
+	for i := 0; i < len(s); i++ {
 		s = strings.TrimPrefix(s, "0")
 	}
 	return s
