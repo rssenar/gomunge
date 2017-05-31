@@ -206,10 +206,6 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		customer.ErrStat = "Err: Missing First/Last Name"
 	}
 
-	customer.ErrStat = d.checkforBuss(customer.Firstname)
-	customer.ErrStat = d.checkforBuss(customer.MI)
-	customer.ErrStat = d.checkforBuss(customer.Lastname)
-
 	zip, zip4 := parseZip(customer.Zip)
 	customer.Zip = zip
 	if zip4 != "" {
@@ -224,54 +220,82 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		customer.ErrStat = "Err: Invalid ZIP Code"
 	}
 
-	if rad, err := strconv.ParseFloat(customer.Radius, 64); err == nil {
-		if rad > float64(d.config.MaxRadius) {
-			customer.ErrStat = "Err: Max Radius Exceeded"
+	if tCase(d.config.Method) == "Standard" {
+		if rad, err := strconv.ParseFloat(customer.Radius, 64); err == nil {
+			if rad > float64(d.config.MaxRadius) {
+				customer.ErrStat = "Err: Max Radius Exceeded"
+			}
+		}
+		for _, zinc := range d.config.IncludeZIP {
+			if customer.Zip == trimZeros(strconv.Itoa(zinc)) {
+				customer.ErrStat = ""
+			}
+		}
+		if yr, err := strconv.Atoi(customer.Year); err == nil {
+			if yr > d.config.MaxVehYear {
+				customer.ErrStat = "Err: Max Year Exceeded"
+			}
+		}
+		if yr, err := strconv.Atoi(customer.Year); err == nil {
+			if yr < d.config.MinVehYear {
+				customer.ErrStat = "Err: Min Year Exceeded"
+			}
+		}
+		if d.config.ExcludeBlankYear {
+			if customer.Year == "" {
+				customer.ErrStat = "Err: Blank Year"
+			}
+		}
+		if d.config.ExcludeBlankMake {
+			if customer.Make == "" {
+				customer.ErrStat = "Err: Blank Make"
+			}
+		}
+		if d.config.ExcludeBlankModel {
+			if customer.Model == "" {
+				customer.ErrStat = "Err: Blank Model"
+			}
+		}
+		if d.config.ExcludeBlankVIN {
+			if customer.VIN == "" {
+				customer.ErrStat = "Err: Blank VIN"
+			}
+		}
+		if d.config.ExcludeBlankDELDATE {
+			if customer.DelDate.IsZero() {
+				customer.ErrStat = "Err: Blank DELDATE"
+			}
+		}
+		if d.config.ExcludeBlankDATE {
+			if customer.Date.IsZero() {
+				customer.ErrStat = "Err: Blank DATE"
+			}
+		}
+		if !customer.DelDate.IsZero() {
+			if customer.DelDate.Year() > d.config.MaxYearDelDate {
+				customer.ErrStat = "Err: Max DelDate Exceeded"
+			}
+		}
+		if !customer.DelDate.IsZero() {
+			if customer.DelDate.Year() < d.config.MinYearDelDate {
+				customer.ErrStat = "Err: Min DelDate Exceeded"
+			}
+		}
+		if !customer.Date.IsZero() {
+			if customer.Date.Year() > d.config.MaxYearDate {
+				customer.ErrStat = "Err: Max Date Exceeded"
+			}
+		}
+		if !customer.Date.IsZero() {
+			if customer.Date.Year() < d.config.MinYearDate {
+				customer.ErrStat = "Err: Min Date Exceeded"
+			}
 		}
 	}
 
-	if yr, err := strconv.Atoi(customer.Year); err == nil {
-		if yr > d.config.MaxVehYear {
-			customer.ErrStat = "Err: Max Year Exceeded"
-		}
-	}
-
-	if yr, err := strconv.Atoi(customer.Year); err == nil {
-		if yr < d.config.MinVehYear {
-			customer.ErrStat = "Err: Min Year Exceeded"
-		}
-	}
-
-	if d.config.ExcludeBlankYear {
-		if customer.Year == "" {
-			customer.ErrStat = "Err: Blank Year"
-		}
-	}
-
-	if d.config.ExcludeBlankMake {
-		if customer.Make == "" {
-			customer.ErrStat = "Err: Blank Make"
-		}
-	}
-
-	if d.config.ExcludeBlankModel {
-		if customer.Model == "" {
-			customer.ErrStat = "Err: Blank Model"
-		}
-	}
-
-	if !customer.DelDate.IsZero() {
-		if customer.DelDate.Year() > d.config.MaxYearDelDate {
-			customer.ErrStat = "Err: Max DelDate Exceeded"
-		}
-	}
-
-	if !customer.DelDate.IsZero() {
-		if customer.DelDate.Year() < d.config.MinYearDelDate {
-			customer.ErrStat = "Err: Min DelDate Exceeded"
-		}
-	}
-
+	customer.ErrStat = d.checkforBuss(customer.Firstname)
+	customer.ErrStat = d.checkforBuss(customer.MI)
+	customer.ErrStat = d.checkforBuss(customer.Lastname)
 	return customer
 }
 
@@ -300,7 +324,7 @@ func (d *dataInfo) checkforBuss(s string) string {
 }
 
 func (d *dataInfo) taskGenerator() {
-	log.Println("Ingesting Data...")
+	fmt.Println("Ingesting Data")
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
 	if err != nil {
 		log.Fatalln(err)
@@ -320,7 +344,6 @@ func (d *dataInfo) taskGenerator() {
 		}
 	}
 	close(d.tasks)
-	log.Println("Data Ingest Complete...")
 }
 
 func (d *dataInfo) processTasks() {
@@ -429,28 +452,28 @@ func lCase(f string) string {
 	return strings.TrimSpace(strings.ToLower(f))
 }
 
+func addSep(n int) string {
+	in := strconv.Itoa(n)
+	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
+	if in[0] == '-' {
+		in, out[0] = in[1:], '-'
+	}
+	for i, j, k := len(in)-1, len(out)-1, 0; ; i, j = i-1, j-1 {
+		out[j] = in[i]
+		if i == 0 {
+			return string(out)
+		}
+		if k++; k == 3 {
+			j, k = j-1, 0
+			out[j] = ','
+		}
+	}
+}
+
 // func genSeqNum() func() int {
 // 	i := 0
 // 	return func() int {
 // 		i++
 // 		return i
-// 	}
-// }
-
-// func addSep(n int64) string {
-// 	in := strconv.FormatInt(n, 10)
-// 	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
-// 	if in[0] == '-' {
-// 		in, out[0] = in[1:], '-'
-// 	}
-// 	for i, j, k := len(in)-1, len(out)-1, 0; ; i, j = i-1, j-1 {
-// 		out[j] = in[i]
-// 		if i == 0 {
-// 			return string(out)
-// 		}
-// 		if k++; k == 3 {
-// 			j, k = j-1, 0
-// 			out[j] = ','
-// 		}
 // 	}
 // }

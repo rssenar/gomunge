@@ -11,20 +11,21 @@ import (
 
 func (d *dataInfo) custID(id int) string {
 	var i int
-	switch {
-	case d.config.Source == "D":
+	switch tCase(d.config.Source) {
+	case "Database":
 		i = id + 10000
-	case d.config.Source == "P":
+	case "Purchase":
 		i = id + 50000
+	default:
+		log.Fatalln("Invalid SOURCE: Needs to be [Database] or [Purchase]")
 	}
 	if i > 99999 {
-		log.Fatalln("WARNING! CustID is > 99999")
+		log.Fatalln("WARNING! CustID is > 99,999")
 	}
 	return strconv.Itoa(i)
 }
 
 func (d *dataInfo) outputCSV(cust []*customer) {
-	log.Println("Exporting Processed Output to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_OUTPUT.csv", fileName))
 	if err != nil {
 		log.Fatalln(err)
@@ -122,7 +123,6 @@ func (d *dataInfo) outputCSV(cust []*customer) {
 }
 
 func (d *dataInfo) errStatusCSV(cust []*customer) {
-	log.Println("Exporting Dupes to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_ERR.csv", fileName))
 	if err != nil {
 		log.Fatalln(err)
@@ -130,7 +130,7 @@ func (d *dataInfo) errStatusCSV(cust []*customer) {
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
-		"Seq#",
+		"#",
 		"FirstName",
 		"LastName",
 		"Address",
@@ -148,7 +148,7 @@ func (d *dataInfo) errStatusCSV(cust []*customer) {
 
 	for idx, x := range cust {
 		var r []string
-		r = append(r, fmt.Sprintf("%v", idx))
+		r = append(r, fmt.Sprintf("%v", idx+1))
 		r = append(r, x.Firstname)
 		r = append(r, x.Lastname)
 		r = append(r, x.combAddr(x))
@@ -166,7 +166,6 @@ func (d *dataInfo) errStatusCSV(cust []*customer) {
 }
 
 func (d *dataInfo) phonesCSV(cust []*customer) {
-	log.Println("Exporting Phones to File...")
 	file, err := os.Create(fmt.Sprintf("./%v_PHONES.csv", fileName))
 	if err != nil {
 		log.Fatalln(err)
@@ -174,7 +173,7 @@ func (d *dataInfo) phonesCSV(cust []*customer) {
 	defer file.Close()
 	writer := csv.NewWriter(file)
 	header := []string{
-		"Ctr",
+		"#",
 		"First Name",
 		"Last Name",
 		"Address",
@@ -189,7 +188,7 @@ func (d *dataInfo) phonesCSV(cust []*customer) {
 	for idx, x := range cust {
 		var r []string
 		if x.HPH != "" {
-			r = append(r, fmt.Sprintf("%v", idx))
+			r = append(r, fmt.Sprintf("%v", idx+1))
 			r = append(r, x.Firstname)
 			r = append(r, x.Lastname)
 			r = append(r, fmt.Sprintf("%v %v", x.Address1, x.Address2))

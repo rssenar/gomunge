@@ -16,10 +16,11 @@ var (
 	dduFacPath    = "/Users/richardsenar/Dropbox/Resource/DDUFacilites.csv"
 	ethnicityPath = "/Users/richardsenar/Dropbox/Resource/HispLNames.csv"
 	dnmPath       = "/Users/richardsenar/Dropbox/Resource/DoNotMail.csv"
-	gensPath      = "/Users/richardsenar/Dropbox/Resource/_GeneralSuppression.csv"
+	gensPath      = "/Users/richardsenar/Dropbox/HUB/Projects/PyToolkit/Resources/_GeneralSuppression.csv"
 )
 
 type initConfig struct {
+	Method              string `json:"Method"`
 	Source              string `json:"Source"`
 	CentZip             int    `json:"Central Zip"`
 	MaxRadius           int    `json:"Max Radius"`
@@ -27,13 +28,18 @@ type initConfig struct {
 	MinVehYear          int    `json:"Min Vehicle Year"`
 	MaxYearDelDate      int    `json:"Max Year DelDate"`
 	MinYearDelDate      int    `json:"Min Year DelDate"`
+	MaxYearDate         int    `json:"Max Year Date"`
+	MinYearDate         int    `json:"Min Year Date"`
 	Vendor              string `json:"Vendor"`
 	ExcludeBlankDELDATE bool   `json:"Exclude Blank DelDate"`
 	ExcludeBlankDATE    bool   `json:"Exclude Blank Date"`
 	ExcludeBlankYear    bool   `json:"Exclude Blank Year"`
 	ExcludeBlankMake    bool   `json:"Exclude Blank Make"`
 	ExcludeBlankModel   bool   `json:"Exclude Blank Model"`
+	ExcludeBlankVIN     bool   `json:"Exclude Blank VIN"`
+	OutputPhoneList     bool   `json:"Output Phone List"`
 	Gorutines           int    `json:"Gorutines"`
+	IncludeZIP          []int  `json:"Include ZIP"`
 }
 
 func loadConfig() *initConfig {
@@ -47,6 +53,25 @@ func loadConfig() *initConfig {
 	jsonParser := json.NewDecoder(conf)
 	if err = jsonParser.Decode(&param); err != nil {
 		log.Fatalln("error decoding config file", err)
+	}
+
+	switch tCase(param.Method) {
+	case "Standard":
+		fmt.Printf("Method:: %v\n", uCase(param.Method))
+	case "Basic":
+		fmt.Printf("Method:: %v\n", uCase(param.Method))
+		fmt.Println("***SUPPRESSIONS DISABLED***")
+	default:
+		log.Fatalln("Invalid METHOD: Needs to be [Standard] or [Basic]")
+	}
+
+	switch tCase(param.Source) {
+	case "Database":
+		fmt.Printf("Data Source:: %v\n", uCase(param.Source))
+	case "Purchase":
+		fmt.Printf("Data Source:: %v\n", uCase(param.Source))
+	default:
+		log.Fatalln("Invalid SOURCE: Needs to be [Database] or [Purchase]")
 	}
 	return param
 }
