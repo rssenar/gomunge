@@ -195,13 +195,14 @@ func (d *dataInfo) processRecord(record []string) *customer {
 		}
 	}
 
-	if customer.Firstname == "" && customer.Lastname == "" {
-		name := names.Parse(customer.Fullname)
-		customer.Firstname = tCase(name.FirstName)
-		customer.MI = tCase(name.MiddleName)
-		customer.Lastname = tCase(name.LastName)
+	if customer.Fullname != "" {
+		if customer.Firstname == "" && customer.Lastname == "" {
+			name := names.Parse(customer.Fullname)
+			customer.Firstname = tCase(name.FirstName)
+			customer.MI = tCase(name.MiddleName)
+			customer.Lastname = tCase(name.LastName)
+		}
 	}
-
 	if customer.Firstname == "" || customer.Lastname == "" {
 		customer.ErrStat = "Err: Missing First/Last Name"
 	}
@@ -226,9 +227,16 @@ func (d *dataInfo) processRecord(record []string) *customer {
 				customer.ErrStat = "Err: Max Radius Exceeded"
 			}
 		}
-		for _, zinc := range d.config.IncludeZIP {
-			if customer.Zip == trimZeros(strconv.Itoa(zinc)) {
-				customer.ErrStat = ""
+		if len(d.config.IncludeZIP) != 0 {
+			for _, zinc := range d.config.IncludeZIP {
+				if customer.Zip == trimZeros(strconv.Itoa(zinc)) {
+					customer.ErrStat = ""
+				}
+			}
+			if rad, err := strconv.ParseFloat(customer.Radius, 64); err == nil {
+				if rad > float64(d.config.MaxRadiusOuter) {
+					customer.ErrStat = "Err: Max Radius Outer Exceeded"
+				}
 			}
 		}
 		if yr, err := strconv.Atoi(customer.Year); err == nil {
@@ -292,10 +300,7 @@ func (d *dataInfo) processRecord(record []string) *customer {
 			}
 		}
 	}
-
-	customer.ErrStat = d.checkforBuss(customer.Firstname)
-	customer.ErrStat = d.checkforBuss(customer.MI)
-	customer.ErrStat = d.checkforBuss(customer.Lastname)
+	d.checkforBuss(customer)
 	return customer
 }
 
@@ -313,18 +318,28 @@ func (d *dataInfo) getLatLong(cZip, rZip string) (float64, float64, float64, flo
 	return lat1, lon1, lat2, lon2
 }
 
-func (d *dataInfo) checkforBuss(s string) string {
-	names := strings.Fields(s)
-	for _, name := range names {
+func (d *dataInfo) checkforBuss(c *customer) {
+	first := strings.Fields(c.Firstname)
+	for _, name := range first {
 		if _, ok := d.DNM[tCase(name)]; ok {
-			return "Err: Business"
+			c.ErrStat = "Business"
 		}
 	}
-	return ""
+	mi := strings.Fields(c.MI)
+	for _, name := range mi {
+		if _, ok := d.DNM[tCase(name)]; ok {
+			c.ErrStat = "Business"
+		}
+	}
+	last := strings.Fields(c.Lastname)
+	for _, name := range last {
+		if _, ok := d.DNM[tCase(name)]; ok {
+			c.ErrStat = "Business"
+		}
+	}
 }
 
 func (d *dataInfo) taskGenerator() {
-	fmt.Println("Ingesting Data")
 	file, err := os.Open(fmt.Sprintf("./%v.csv", fileName))
 	if err != nil {
 		log.Fatalln(err)
@@ -385,6 +400,7 @@ func parseZip(zip string) (string, string) {
 func trimZeros(s string) string {
 	for i := 0; i < len(s); i++ {
 		s = strings.TrimPrefix(s, "0")
+
 	}
 	return s
 }

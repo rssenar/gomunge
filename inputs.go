@@ -24,6 +24,7 @@ type initConfig struct {
 	Source              string `json:"Source"`
 	CentZip             int    `json:"Central Zip"`
 	MaxRadius           int    `json:"Max Radius"`
+	MaxRadiusOuter      int    `json:"Max Radius Outer"`
 	MaxVehYear          int    `json:"Max Vehicle Year"`
 	MinVehYear          int    `json:"Min Vehicle Year"`
 	MaxYearDelDate      int    `json:"Max Year DelDate"`

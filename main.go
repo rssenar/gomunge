@@ -23,7 +23,7 @@ func main() {
 	go p.taskGenerator()
 
 	p.wg.Add(p.config.Gorutines)
-	fmt.Printf("Running %v Goroutines\n", addSep(p.config.Gorutines))
+	fmt.Println("Processing...")
 	for i := 0; i < p.config.Gorutines; i++ {
 		go p.processTasks()
 	}
@@ -32,7 +32,6 @@ func main() {
 	go func() {
 		p.wg.Wait()
 		close(p.results)
-		fmt.Println("Goroutines Terminated")
 	}()
 
 	// range over task channel to drain channel
